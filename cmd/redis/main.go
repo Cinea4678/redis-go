@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"redis-go/lib/redis"
+)
 
 func main() {
-	fmt.Println("hello world")
+	redis.Start()
 }

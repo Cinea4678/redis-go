@@ -1,35 +1,33 @@
 package redis
 
 import (
+	"github.com/panjf2000/gnet/v2"
 	"log"
 	"strconv"
-	"time"
-
-	"github.com/panjf2000/gnet/v2"
 )
 
 type eventloop struct {
 	traffic func(c gnet.Conn) (action gnet.Action)
 	open    func(c gnet.Conn) (out []byte, action gnet.Action)
-	tick    func() (delay time.Duration, action gnet.Action)
+	//tick    func() (delay time.Duration, action gnet.Action)
 
 	*gnet.BuiltinEventEngine
 }
 
-// 当新的客户端连接到服务器
+// OnOpen 当新的客户端连接到服务器
 func (e *eventloop) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	return e.open(c)
 }
 
-// 当有数据流量到达服务器
+// OnTraffic 当有数据流量到达服务器
 func (e *eventloop) OnTraffic(c gnet.Conn) gnet.Action {
 	return e.traffic(c)
 }
 
-// 定时触发
-func (e *eventloop) Tick() (delay time.Duration, action gnet.Action) {
-	return e.tick()
-}
+//// Tick 定时触发
+//func (e *eventloop) Tick() (delay time.Duration, action gnet.Action) {
+//	return e.tick()
+//}
 
 func elMain() {
 	addr := "tcp://" + server.bindaddr + ":" + strconv.Itoa(server.port)

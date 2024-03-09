@@ -1,8 +1,8 @@
 package redis
 
 import (
+	"github.com/smallnest/resp3"
 	"os"
-	"redis-go/lib/redis/ds"
 	"time"
 
 	"github.com/panjf2000/gnet/v2"
@@ -27,8 +27,13 @@ const (
 	redisErr = -1
 )
 
+const (
+	unitSeconds = iota
+	unitMilliseconds
+)
+
 var (
-	shared *sharedObjectsStruct
+	shared *sharedValuesStruct
 )
 
 type redisServer struct {
@@ -36,10 +41,10 @@ type redisServer struct {
 
 	hz       int // hz
 	db       *redisDb
-	commands *ds.Dict //redis命令字典 string(如get/set) : *redisCommand
+	commands *dict //redis命令字典 string(如get/set) : *redisCommand
 
-	clientCounter int      //存储client的id计数器
-	clients       *ds.Dict //客户端字典 id : *redisClient
+	clientCounter int   //存储client的id计数器
+	clients       *dict //客户端字典 id : *redisClient
 
 	port       int
 	tcpBacklog int
@@ -55,46 +60,34 @@ type redisClient struct {
 	id   int
 	conn gnet.Conn // 客户端连接
 	db   *redisDb  // Db
-	name *ds.Robj
-	argc int        // 命令数量
-	argv []*ds.Robj // 命令值
+	name *robj
+	argc int     // 命令数量
+	argv []*robj // 命令值
 
 	cmd     *redisCommand // 当前执行的命令
 	lastCmd *redisCommand // 最后执行的命令
 
-	reqtype  int    // 请求类型
-	queryBuf string // 从客户端读到的数据
-
-	buf     []byte // 准备发回客户端的数据
-	bufpos  int    // 发回数据的pos
-	sentlen int    // 已发送的字节数
+	reqValue *resp3.Value // 从客户端收到的请求
 
 	flags int //处理标记
 }
 
-// redis命令结构
-type redisCommand struct {
-	name            string                    // 命令名称
-	redisClientFunc func(client *redisClient) // 命令处理函数
-}
-
 // 共享对象
-type sharedObjectsStruct struct {
-	crlf      *ds.Robj
-	ok        *ds.Robj
-	err       *ds.Robj
-	syntaxerr *ds.Robj
-	nullbulk  *ds.Robj
-	czero     *ds.Robj
-	cone      *ds.Robj
-	oomerr    *ds.Robj
+type sharedValuesStruct struct {
+	ok        *resp3.Value
+	err       *resp3.Value
+	syntaxErr *resp3.Value
+	nullBulk  *resp3.Value
+	cZero     *resp3.Value
+	cOne      *resp3.Value
+	oomErr    *resp3.Value
 }
 
 // 初始化server配置
 func initServerConfig() {
 	server.port = redisServerPort
 	server.tcpBacklog = redisTcpBacklog
-	// TODO server.events = &eventloop{}
+	server.events = &eventloop{}
 
 }
 
@@ -102,22 +95,32 @@ func initServerConfig() {
 func initServer() {
 	server.pid = os.Getpid()
 
-	server.clients = &ds.Dict{}
+	server.clients = &dict{}
 
 	// 初始化事件处理器
 	server.events.traffic = dataHandler
 	server.events.open = acceptHandler
-	server.events.tick = func() (delay time.Duration, action gnet.Action) {
-		return serverCron(), action
-	}
+	//server.events.tick = func() (delay time.Duration, action gnet.Action) {
+	//	return serverCron(), action
+	//}
+
+	server.commands = initCommandDict()
 
 	server.db = &redisDb{
-		dict:    &ds.Dict{},
-		expires: &ds.Dict{},
+		dict:    &dict{},
+		expires: &dict{},
 		id:      1,
 	}
 
-	createSharedObjects()
+	createSharedValues()
+}
+
+func initCommandDict() *dict {
+	d := dict{}
+	for _, cmd := range redisCommandTable {
+		d.DictAdd(cmd.name, cmd)
+	}
+	return &d
 }
 
 func generateClientId() int {
@@ -125,21 +128,16 @@ func generateClientId() int {
 	return server.clientCounter
 }
 
-func createSharedObjects() {
-	shared = &sharedObjectsStruct{
-		crlf:      ds.CreateObject(ds.RedisString, string("\r\n")),
-		ok:        ds.CreateObject(ds.RedisString, string("+OK\r\n")),
-		err:       ds.CreateObject(ds.RedisString, string("-ERR\r\n")),
-		syntaxerr: ds.CreateObject(ds.RedisString, string("-ERR syntax error\r\n")),
-		nullbulk:  ds.CreateObject(ds.RedisString, string("$-1\r\n")),
-		czero:     ds.CreateObject(ds.RedisString, string(":0\r\n")),
-		cone:      ds.CreateObject(ds.RedisString, string(":1\r\n")),
-		oomerr:    ds.CreateObject(ds.RedisString, string("-OOM command not allowed when used memory > 'maxmemory'.\r\n")),
+func createSharedValues() {
+	shared = &sharedValuesStruct{
+		ok:        &resp3.Value{Type: resp3.TypeSimpleString, Str: "OK"},
+		err:       &resp3.Value{Type: resp3.TypeSimpleError, Str: "ERR"},
+		syntaxErr: &resp3.Value{Type: resp3.TypeSimpleError, Str: "-ERR syntax error"},
+		cZero:     &resp3.Value{Type: resp3.TypeNumber, Integer: 0},
+		cOne:      &resp3.Value{Type: resp3.TypeNumber, Integer: 1},
+		oomErr:    &resp3.Value{Type: resp3.TypeSimpleError, Str: "-OOM command not allowed when used memory > 'maxmemory'"},
 	}
 }
-
-// 处理命令
-func processCommand(client *redisClient) int { return 0 }
 
 func lruClock() uint64 {
 	if 1000/server.hz <= redisLruClockResolution {
@@ -149,21 +147,28 @@ func lruClock() uint64 {
 }
 
 func getLruClock() uint64 {
-	return uint64(mstime() / redisLruClockResolution & redisLruClockMax)
+	return uint64(msTime() / redisLruClockResolution & redisLruClockMax)
 }
 
-func mstime() int64 {
-	return int64(time.Now().UnixNano() / 1000 / 1000)
+func msTime() int64 {
+	return time.Now().UnixNano() / 1000 / 1000
 }
 
-func ustime() int64 {
-	return int64(time.Now().UnixNano() / 1000)
-}
+//func ustime() int64 {
+//	return time.Now().UnixNano() / 1000
+//}
+//
+//func serverCron() time.Duration {
+//	server.lruclock = getLruClock()
+//	databasesCron()
+//	return time.Millisecond * time.Duration(1000/server.hz)
+//}
 
-func serverCron() time.Duration {
-	server.lruclock = getLruClock()
-	databasesCron()
-	return time.Millisecond * time.Duration(1000/server.hz)
+// Start 启动服务器
+func Start() {
+	initServerConfig()
+	initServer()
+	elMain()
 }
 
 var server = &redisServer{}
