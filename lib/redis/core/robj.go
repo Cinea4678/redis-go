@@ -1,4 +1,4 @@
-package redis
+package core
 
 import "strconv"
 
@@ -8,7 +8,7 @@ const (
 	//redisSet
 )
 
-type robj struct {
+type Robj struct {
 	Rtype    uint8
 	Encoding uint8
 	Lru      uint64
@@ -16,8 +16,8 @@ type robj struct {
 	Ptr      interface{}
 }
 
-func createObject(t uint8, ptr interface{}) *robj {
-	return &robj{
+func createObject(t uint8, ptr interface{}) *Robj {
+	return &Robj{
 		Rtype:    t,
 		Encoding: 0,
 		Ptr:      ptr,
@@ -26,7 +26,7 @@ func createObject(t uint8, ptr interface{}) *robj {
 	}
 }
 
-func (o *robj) getUint64() (res uint64, err error) {
+func (o *Robj) getUint64() (res uint64, err error) {
 	if o != nil {
 		if o.Rtype == redisString {
 			res, err = strconv.ParseUint(o.Ptr.(string), 10, 64)

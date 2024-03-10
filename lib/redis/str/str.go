@@ -1,4 +1,4 @@
-package redis
+package str
 
 /*************
 	String 操作&命令
@@ -18,7 +18,11 @@ const (
 )
 
 // 通用的Set命令处理工具
-//func setGenericCommand(client *redisClient, flags int, key *robj, val *robj, expire *robj, unit int, ok_reply *robj, abort_reply *robj) {
+//func cmdSet(client *RedisClient) (err error) {
+//
+//}
+
+//func setGenericCommand(client *RedisClient, flags int, key *Robj, val *Robj, expire *Robj, unit int, ok_reply *Robj, abort_reply *Robj) {
 //	milliseconds := 0
 //	found := 0
 //	setkey_falgs := 0
@@ -26,7 +30,7 @@ const (
 //	//if expire != nil &&
 //}
 //
-//func getExpireMillisecondsOrReply(client *redisClient, expire *robj, flags int, unit int) (milliseconds uint64, err error) {
+//func getExpireMillisecondsOrReply(client *RedisClient, expire *Robj, flags int, unit int) (milliseconds uint64, err error) {
 //	milliseconds, err = expire.getUint64()
 //	if err != nil {
 //		return

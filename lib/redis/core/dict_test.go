@@ -1,9 +1,9 @@
-package redis
+package core
 
 import "testing"
 
 func TestMapDict(t *testing.T) {
-	dict := dict{}
+	dict := Dict{}
 
 	// 测试添加功能
 	if dict.DictAdd("key1", "value1") != dictOk {
