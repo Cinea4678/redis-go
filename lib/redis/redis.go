@@ -8,6 +8,7 @@ import (
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
 	"redis-go/lib/redis/shared"
+	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
 	"strconv"
 )
@@ -24,13 +25,14 @@ func initServerConfig() {
 	shared.Server.Events = &core.EventLoop{}
 
 	io.RedisCommandTable = append(io.RedisCommandTable, system.UtilsCommand...)
+	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommand...)
 }
 
 // 初始化server
 func initServer() {
 	shared.Server.Pid = os.Getpid()
 
-	shared.Server.Clients = &core.Dict{}
+	shared.Server.Clients = core.NewDict()
 
 	// 初始化事件处理器
 	shared.Server.Events.Traffic = io.DataHandler
@@ -42,8 +44,8 @@ func initServer() {
 	shared.Server.Commands = initCommandDict()
 
 	shared.Server.Db = &core.RedisDb{
-		Dict:    &core.Dict{},
-		Expires: &core.Dict{},
+		Dict:    core.NewDict(),
+		Expires: core.NewDict(),
 		Id:      1,
 	}
 
@@ -51,11 +53,11 @@ func initServer() {
 }
 
 func initCommandDict() *core.Dict {
-	d := core.Dict{}
+	d := core.NewDict()
 	for _, cmd := range io.RedisCommandTable {
 		d.DictAdd(cmd.Name, cmd)
 	}
-	return &d
+	return d
 }
 
 //func lruClock() uint64 {

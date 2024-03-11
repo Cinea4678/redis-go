@@ -35,14 +35,7 @@ func AddReplyBigNumber(client *core.RedisClient, number *big.Int) {
 // AddReplyError 向客户端发回一个错误
 func AddReplyError(client *core.RedisClient, err error) {
 	s := "ERR " + err.Error()
-
-	var resType byte
-	if len(s) > 32 {
-		resType = resp3.TypeBlobError
-	} else {
-		resType = resp3.TypeSimpleError
-	}
-	v := resp3.Value{Type: resType, Err: s}
+	v := resp3.Value{Type: resp3.TypeSimpleError, Err: s}
 	SendReplyToClient(client, &v)
 }
 
@@ -56,6 +49,14 @@ func AddReplyString(client *core.RedisClient, str string) {
 	}
 	v := resp3.Value{Type: resType, Str: str}
 	SendReplyToClient(client, &v)
+}
+
+// AddReplyObject 向客户端发回一个Redis对象
+func AddReplyObject(client *core.RedisClient, obj *core.Robj) {
+	switch obj.Rtype {
+	case core.RedisString:
+		AddReplyString(client, *obj.Ptr.(*string))
+	}
 }
 
 // SendReplyToClient 向客户端发送一个已经构造为resp3.Value的值

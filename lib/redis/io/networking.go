@@ -8,6 +8,7 @@ import (
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/shared"
 	"runtime"
+	"strconv"
 )
 
 var (
@@ -36,7 +37,8 @@ func createClient(c gnet.Conn) *core.RedisClient {
 // 释放某个客户端对象
 func freeClient(client *core.RedisClient) {
 	log.Info().Str("addr", client.Conn.RemoteAddr().String()).Msg("disconnected")
-	shared.Server.Clients.DictRemove(client.Id)
+	id := strconv.FormatInt(int64(client.Id), 10)
+	shared.Server.Clients.DictRemove(id)
 	err := client.Conn.Close()
 	if err != nil {
 		log.Error().Msgf("close client err: %v", err)
@@ -53,13 +55,15 @@ func resetClient(client *core.RedisClient) {
 func AcceptHandler(c gnet.Conn) (out []byte, action gnet.Action) {
 	log.Info().Str("addr", c.RemoteAddr().String()).Msg("connected")
 	client := createClient(c)
-	shared.Server.Clients.DictAdd(client.Id, client)
+	id := strconv.FormatInt(int64(client.Id), 10)
+	shared.Server.Clients.DictAdd(id, client)
 	return out, action
 }
 
 // DataHandler 接收到客户端的命令
 func DataHandler(c gnet.Conn) (action gnet.Action) {
-	client := shared.Server.Clients.DictFind(c.Context()).(*core.RedisClient)
+	id := strconv.FormatInt(int64(c.Context().(int)), 10)
+	client := shared.Server.Clients.DictFind(id).(*core.RedisClient)
 
 	// 将数据设置到client中
 	frame, _ := c.Next(-1)

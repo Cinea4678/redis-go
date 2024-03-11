@@ -14,7 +14,7 @@ type ValuesStruct struct {
 	Ok        *resp3.Value
 	err       *resp3.Value
 	syntaxErr *resp3.Value
-	nullBulk  *resp3.Value
+	Nil       *resp3.Value
 	cZero     *resp3.Value
 	cOne      *resp3.Value
 	oomErr    *resp3.Value
@@ -25,6 +25,7 @@ func CreateSharedValues() {
 		Ok:        &resp3.Value{Type: resp3.TypeSimpleString, Str: "OK"},
 		err:       &resp3.Value{Type: resp3.TypeSimpleError, Str: "ERR"},
 		syntaxErr: &resp3.Value{Type: resp3.TypeSimpleError, Str: "-ERR syntax error"},
+		Nil:       resp3.NewNullValue(),
 		cZero:     &resp3.Value{Type: resp3.TypeNumber, Integer: 0},
 		cOne:      &resp3.Value{Type: resp3.TypeNumber, Integer: 1},
 		oomErr:    &resp3.Value{Type: resp3.TypeSimpleError, Str: "-OOM command not allowed when used memory > 'maxmemory'"},

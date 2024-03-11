@@ -6,47 +6,50 @@ type RedisDb struct {
 	Id      int
 }
 
-func (r *RedisDb) setKey(key *Robj, val *Robj) {
-	if r.lookupKey(key) == nil {
-		r.dbAdd(key, val)
+func (r *RedisDb) SetKey(key string, val *Robj) {
+	if r.LookupKey(key) == nil {
+		r.DbAdd(key, val)
 	} else {
-		r.dbOverwrite(key, val)
+		r.DbOverwrite(key, val)
 	}
-	val.Refcount++
 }
 
-func (r *RedisDb) dbAdd(key *Robj, val *Robj) {
-	r.Dict.DictAdd(key.Ptr, val)
+func (r *RedisDb) DbAdd(key string, val *Robj) {
+	r.Dict.DictAdd(key, val)
 }
 
-func (r *RedisDb) dbOverwrite(key *Robj, val *Robj) {
-	r.Dict.DictUpdate(key.Ptr, val)
+func (r *RedisDb) DbDelete(key string) {
+	r.Dict.DictRemove(key)
 }
 
-// func (r *RedisDb) expireIfNeeded(key *Robj) int {
-// 	when := r.getExpire(key)
+func (r *RedisDb) DbOverwrite(key string, val *Robj) {
+	r.Dict.DictUpdate(key, val)
+}
 
-// 	if when < 0 {
-// 		return 0
-// 	}
-// 	now := msTime()
+func (r *RedisDb) expireIfNeeded(key string) {
+	when, ok := r.GetExpire(key)
 
-// 	if now <= when {
-// 		return 0
-// 	}
+	if !ok || when < 0 {
+		return
+	}
+	now := GetTimeUnixMilli()
 
-// 	return r.dbDelete(key)
-// }
+	if now <= when {
+		return
+	}
 
-func (r *RedisDb) lookupKey(key *Robj) *Robj {
-	//检查key是否过期，如果过期则删除
-	// r.expireIfNeeded(key)
+	r.DbDelete(key)
+}
+
+func (r *RedisDb) LookupKey(key string) *Robj {
+	// 检查key是否过期，如果过期则删除
+	r.expireIfNeeded(key)
 
 	return r.doLookupKey(key)
 }
 
-func (r *RedisDb) doLookupKey(key *Robj) *Robj {
-	entry := r.Dict.DictFind(key.Ptr)
+func (r *RedisDb) doLookupKey(key string) *Robj {
+	entry := r.Dict.DictFind(key)
 	if entry != nil {
 		val := entry.(*Robj)
 		//val.Lru = redis.lruClock()
@@ -55,9 +58,20 @@ func (r *RedisDb) doLookupKey(key *Robj) *Robj {
 	return nil
 }
 
-func (r *RedisDb) setExpire(key *Robj, expire uint64) {
-	kde := r.Dict.DictFind(key.Ptr)
-	if kde != nil {
-		r.Expires.DictAdd(key.Ptr, expire)
+func (r *RedisDb) SetExpire(key string, expire int64) {
+	kde := r.Expires.DictFind(key)
+	if kde == nil {
+		r.Expires.DictAdd(key, expire)
+	} else {
+		r.Expires.DictUpdate(key, expire)
+	}
+}
+
+func (r *RedisDb) GetExpire(key string) (time int64, ok bool) {
+	res := r.Expires.DictFind(key)
+	if res == nil {
+		return 0, false
+	} else {
+		return res.(int64), true
 	}
 }
