@@ -1,6 +1,6 @@
 void* NewHashDict();
 
-int ReleaseHashDict(int hd);
+int ReleaseHashDict(void* hd);
 
 int DictAdd(void* hd, const char* key, int val);
 

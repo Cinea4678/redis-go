@@ -6,7 +6,10 @@ package hash_dict
 #include "hash_dict.h"
 */
 import "C"
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 const (
 	DictOk = iota
@@ -26,7 +29,14 @@ type HashDict struct {
 
 func NewDict() *HashDict {
 	ptr := C.NewHashDict()
-	return &HashDict{ptr: ptr}
+	dict := &HashDict{ptr: ptr}
+
+	// 注册析构函数
+	runtime.SetFinalizer(dict, func(d *HashDict) {
+		C.ReleaseHashDict(d.ptr)
+	})
+
+	return dict
 }
 
 func (d *HashDict) DictAdd(key string, val interface{}) int {
