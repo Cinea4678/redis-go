@@ -16,6 +16,7 @@ public:
     int dict_add(string key, int val);
     int dict_remove(string key);
     int dict_find(string key);
+    int dict_len();
 };
 
 int hash_dict::dict_add(string key, int val)
@@ -48,6 +49,11 @@ int hash_dict::dict_find(string key)
     }
 }
 
+int hash_dict::dict_len()
+{
+    return map.size();
+}
+
 void* NewHashDict() {
     auto hd = new hash_dict();
     return static_cast<hash_dict*>(hd);
@@ -69,4 +75,8 @@ int DictRemove(void* hd, const char* key) {
 
 int DictFind(void* hd, const char* key) {
     return static_cast<hash_dict*>(hd)->dict_find(key);
+}
+
+int DictLen(void* hd) {
+    return static_cast<hash_dict*>(hd)->dict_len();
 }

@@ -93,3 +93,7 @@ func (d *HashDict) DictFind(key string) interface{} {
 		return d.objs[pos]
 	}
 }
+
+func (d *HashDict) DictLen() int {
+	return int(C.DictLen(d.ptr))
+}
