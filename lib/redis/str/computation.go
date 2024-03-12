@@ -9,8 +9,7 @@ import (
 )
 
 var (
-	errNotString = errors.New("target not a string")
-	errOverflow  = errors.New("increment or decrement would overflow")
+	errOverflow = errors.New("increment or decrement would overflow")
 )
 
 func Increase(client *core.RedisClient) (err error) {
@@ -60,12 +59,7 @@ func DecreaseBy(client *core.RedisClient) (err error) {
 func doIncrease(client *core.RedisClient, key string, increment int64) (err error) {
 	var oldValue int64
 	o := client.Db.LookupKey(key)
-	if o != nil {
-		if o.Rtype != core.RedisString {
-			return errNotString
-		}
-		oldValue, _ = strconv.ParseInt(*o.Ptr.(*string), 10, 64)
-	}
+	oldValue, err = o.GetInteger()
 
 	// 检查是否会溢出
 	if (increment < 0 && oldValue < 0 && increment < (math.MinInt64-oldValue)) || (increment > 0 && oldValue > 0 && increment > (math.MaxInt64-oldValue)) {
@@ -73,8 +67,7 @@ func doIncrease(client *core.RedisClient, key string, increment int64) (err erro
 	}
 
 	newValue := oldValue + increment
-	newValueStr := strconv.FormatInt(newValue, 10)
-	client.Db.SetKey(key, core.CreateString(&newValueStr))
+	client.Db.SetKey(key, core.CreateInteger(newValue))
 
 	io.AddReplyNumber(client, newValue)
 	return

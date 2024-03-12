@@ -74,7 +74,7 @@ func Set(client *core.RedisClient) (err error) {
 		return
 	}
 
-	db.SetKey(key, core.CreateString(&req[1].Str))
+	db.SetKey(key, core.CreateString(req[1].Str))
 
 	if expire {
 		expireTime := parseExpireTime(flags, ts)
@@ -194,7 +194,7 @@ func doGet(client *core.RedisClient, key string) (err error) {
 	return
 }
 
-//func setGenericCommand(client *RedisClient, flags int, key *Robj, val *Robj, expire *Robj, unit int, ok_reply *Robj, abort_reply *Robj) {
+//func setGenericCommand(client *RedisClient, flags int, key *Object, val *Object, expire *Object, unit int, ok_reply *Object, abort_reply *Object) {
 //	milliseconds := 0
 //	found := 0
 //	setkey_falgs := 0
@@ -202,7 +202,7 @@ func doGet(client *core.RedisClient, key string) (err error) {
 //	//if expire != nil &&
 //}
 //
-//func getExpireMillisecondsOrReply(client *RedisClient, expire *Robj, flags int, unit int) (milliseconds uint64, err error) {
+//func getExpireMillisecondsOrReply(client *RedisClient, expire *Object, flags int, unit int) (milliseconds uint64, err error) {
 //	milliseconds, err = expire.getUint64()
 //	if err != nil {
 //		return

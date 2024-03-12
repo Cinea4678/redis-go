@@ -52,8 +52,8 @@ func AddReplyString(client *core.RedisClient, str string) {
 }
 
 // AddReplyObject 向客户端发回一个Redis对象
-func AddReplyObject(client *core.RedisClient, obj *core.Robj) {
-	switch obj.Rtype {
+func AddReplyObject(client *core.RedisClient, obj *core.Object) {
+	switch obj.Type {
 	case core.RedisString:
 		AddReplyString(client, *obj.Ptr.(*string))
 	}

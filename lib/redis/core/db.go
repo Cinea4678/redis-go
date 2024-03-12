@@ -6,7 +6,7 @@ type RedisDb struct {
 	Id      int
 }
 
-func (r *RedisDb) SetKey(key string, val *Robj) {
+func (r *RedisDb) SetKey(key string, val *Object) {
 	if r.LookupKey(key) == nil {
 		r.DbAdd(key, val)
 	} else {
@@ -14,7 +14,7 @@ func (r *RedisDb) SetKey(key string, val *Robj) {
 	}
 }
 
-func (r *RedisDb) DbAdd(key string, val *Robj) {
+func (r *RedisDb) DbAdd(key string, val *Object) {
 	r.Dict.DictAdd(key, val)
 }
 
@@ -22,7 +22,7 @@ func (r *RedisDb) DbDelete(key string) {
 	r.Dict.DictRemove(key)
 }
 
-func (r *RedisDb) DbOverwrite(key string, val *Robj) {
+func (r *RedisDb) DbOverwrite(key string, val *Object) {
 	r.Dict.DictUpdate(key, val)
 }
 
@@ -41,17 +41,17 @@ func (r *RedisDb) expireIfNeeded(key string) {
 	r.DbDelete(key)
 }
 
-func (r *RedisDb) LookupKey(key string) *Robj {
+func (r *RedisDb) LookupKey(key string) *Object {
 	// 检查key是否过期，如果过期则删除
 	r.expireIfNeeded(key)
 
 	return r.doLookupKey(key)
 }
 
-func (r *RedisDb) doLookupKey(key string) *Robj {
+func (r *RedisDb) doLookupKey(key string) *Object {
 	entry := r.Dict.DictFind(key)
 	if entry != nil {
-		val := entry.(*Robj)
+		val := entry.(*Object)
 		//val.Lru = redis.lruClock()
 		return val
 	}

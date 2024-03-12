@@ -9,7 +9,7 @@ type RedisClient struct {
 	Id   int
 	Conn gnet.Conn // 客户端连接
 	Db   *RedisDb  // Db
-	Name *Robj
+	Name *Object
 
 	Cmd     *RedisCommand // 当前执行的命令
 	LastCmd *RedisCommand // 最后执行的命令
