@@ -111,3 +111,68 @@ func SMembers(client *core.RedisClient) (err error) {
 	}
 	return
 }
+
+// SCard 获取集合中元素的数量
+// https://redis.io/commands/scard/
+func SCard(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 1 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	key := req[0].Str
+	if setObj := db.LookupKey(key); setObj == nil {
+		io.AddReplyNumber(client, 0)
+	} else {
+		if setObj.Type != core.RedisSet {
+			return errNotASet
+		}
+		set := setObj.Ptr.(*core.Set)
+
+		size := set.Size()
+		io.AddReplyNumber(client, int64(size))
+	}
+	return
+}
+
+// SRem 移除集合中一个或多个成员
+// https://redis.io/commands/srem/
+func SRem(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 2 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	key := req[0].Str
+	values := req[1:]
+
+	if setObj := db.LookupKey(key); setObj == nil {
+		io.AddReplyNumber(client, 0)
+	} else {
+		if setObj.Type != core.RedisSet {
+			return errNotASet
+		}
+		set := setObj.Ptr.(*core.Set)
+
+		var count int64 = 0
+		for _, value := range values {
+			str := value.Str
+			obj := core.CreateString(str)
+			ok, err := set.Remove(obj)
+			if err != nil {
+				return err
+			}
+			if ok {
+				count++
+			}
+		}
+
+		io.AddReplyNumber(client, count)
+		return
+	}
+	return
+}

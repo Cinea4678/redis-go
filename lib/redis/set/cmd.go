@@ -14,4 +14,6 @@ var SetCommandTable = []*core.RedisCommand{
 	{"sadd", SAdd},
 	{"sismember", SIsMember},
 	{"smembers", SMembers},
+	{"scard", SCard},
+	{"srem", SRem},
 }
