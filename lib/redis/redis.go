@@ -7,6 +7,7 @@ import (
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
+	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
@@ -24,8 +25,9 @@ func initServerConfig() {
 	shared.Server.TcpBacklog = shared.RedisTcpBacklog
 	shared.Server.Events = &core.EventLoop{}
 
-	io.RedisCommandTable = append(io.RedisCommandTable, system.UtilsCommand...)
-	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommand...)
+	io.RedisCommandTable = append(io.RedisCommandTable, system.CommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
 }
 
 // 初始化server

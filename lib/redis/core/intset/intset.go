@@ -25,6 +25,7 @@ type Intset struct {
 	ptr unsafe.Pointer
 }
 
+// NewIntset 创建一个新的整数集合
 func NewIntset() *Intset {
 	ptr := C.NewIntset()
 
@@ -37,7 +38,7 @@ func NewIntset() *Intset {
 	return s
 }
 
-// IntsetAdd 创建一个新的整数集合
+// IntsetAdd 添加元素
 func (s *Intset) IntsetAdd(val int64) int {
 	return int(C.IntsetAdd(s.ptr, C.longlong(val)))
 }

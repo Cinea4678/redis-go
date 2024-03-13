@@ -30,6 +30,7 @@ func ProcessCommand(client *core.RedisClient) (err error) {
 	client.LastCmd = client.Cmd
 
 	if client.Cmd == nil {
+		log.Warn().Str("addr", client.Conn.RemoteAddr().String()).Str("command", cmd).Msg("not found")
 		return errCommandUnknown
 	}
 

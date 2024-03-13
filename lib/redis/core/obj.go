@@ -8,8 +8,8 @@ import (
 
 const (
 	RedisString = iota
-	//redisList
-	//redisSet
+	RedisList
+	RedisSet
 )
 
 const (
@@ -20,6 +20,7 @@ const (
 	ObjectEncodingInt64
 	ObjectEncodingFloat32
 	ObjectEncodingFloat64
+	ObjectEncodingSet
 )
 
 var (
@@ -43,6 +44,21 @@ func IsInteger(str string) bool {
 		}
 	}
 	return true
+}
+
+func (o *Object) IsInteger() bool {
+	switch o.Encoding {
+	case ObjectEncodingInt8:
+		fallthrough
+	case ObjectEncodingInt16:
+		fallthrough
+	case ObjectEncodingInt32:
+		fallthrough
+	case ObjectEncodingInt64:
+		return true
+	default:
+	}
+	return false
 }
 
 func CreateString(str string) *Object {
@@ -77,6 +93,10 @@ func CreateInteger(integer int64) *Object {
 	}
 }
 
+func CreateSet(set *Set) *Object {
+	return CreateObject(RedisSet, ObjectEncodingSet, set)
+}
+
 // GetString 获取以字符串形式表示的值
 func (o *Object) GetString() (str string, err error) {
 	if o == nil {
@@ -87,8 +107,11 @@ func (o *Object) GetString() (str string, err error) {
 	}
 	switch o.Encoding {
 	case ObjectEncodingInt8:
+		fallthrough
 	case ObjectEncodingInt16:
+		fallthrough
 	case ObjectEncodingInt32:
+		fallthrough
 	case ObjectEncodingInt64:
 		var integer int64
 		integer, err = o.GetInteger()

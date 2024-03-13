@@ -8,6 +8,7 @@ package hash_dict
 import "C"
 import (
 	"runtime"
+	"runtime/cgo"
 	"unsafe"
 )
 
@@ -15,6 +16,12 @@ const (
 	DictOk = iota
 	DictErr
 )
+
+//export goCallbackCharInt
+func goCallbackCharInt(h C.uintptr_t, p1 *C.char, p2 C.int) {
+	fn := cgo.Handle(h).Value().(func(*C.char, C.int))
+	fn(p1, p2)
+}
 
 // HashDict
 /**
@@ -96,4 +103,14 @@ func (d *HashDict) DictFind(key string) interface{} {
 
 func (d *HashDict) DictLen() int {
 	return int(C.DictLen(d.ptr))
+}
+
+func (d *HashDict) ForEach(callback func(key string, item interface{})) {
+	cgoCallback := func(key *C.char, val C.int) {
+		callback(C.GoString(key), d.objs[int(val)])
+	}
+
+	handle := cgo.NewHandle(cgoCallback)
+
+	C.DictForEach(d.ptr, C.uintptr_t(handle))
 }

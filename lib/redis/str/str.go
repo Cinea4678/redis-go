@@ -1,7 +1,6 @@
 package str
 
 import (
-	"errors"
 	"github.com/cinea4678/resp3"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
@@ -10,27 +9,9 @@ import (
 	"strings"
 )
 
-/*************
-	String 操作&命令
- *************/
-
-// StringsCommand 字符串相关命令
-var StringsCommand = []*core.RedisCommand{
-	{"set", Set},
-	{"get", Get},
-	{"incr", Increase},
-	{"incrby", IncreaseBy},
-	{"decr", Decrease},
-	{"decrby", DecreaseBy},
-}
-
-var (
-	errNotEnoughArgs       = errors.New("not enough args")
-	errNoKey               = errors.New("no key provided")
-	errNotEnoughArgsExpire = errors.New("not enough args after EX, PX, EXAT or PXAT")
-	errNXAndXXConflict     = errors.New("conflict arg: NX and XX")
-	errExpiresConflict     = errors.New("conflict arg: Only one of EX, PX, EXAT or PXAT can exist at the same time")
-)
+/**
+String 基本操作实现
+*/
 
 const (
 	objNoFlags = 0

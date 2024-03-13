@@ -149,19 +149,25 @@ int intset::find_index(int64_t val)
     }
 
     int l = 0, r = length - 1;
-    while (l < r) {
-        int mid = l + r + 1 >> 1;
-        if (check(mid)) l = mid;
-        else r = mid - 1;
+    int result = -1; // 使用一个变量来保存找到的满足条件的最右边元素的索引
+    while (l <= r) {
+        int mid = l + (r - l) / 2; // 防止溢出
+        if (check(mid)) {
+            result = mid; // 更新满足条件的索引
+            l = mid + 1; // 尝试找到更右边的满足条件的元素
+        } else {
+            r = mid - 1;
+        }
     }
 
-    // cout << "find_index(" << val << ") = " << l << endl;
-
-    if (l >= length || get(l) != val) {
-        return -l - 1;
+    if (get(result) != val) {
+//        cout << "find_index(" << val << ") = " << -result - 2 << " ; result = " << result << " ; get(result) = "<< get(result) << endl;
+        return -result - 2;
     }
 
-    return l;
+//     cout << "find_index(" << val << ") = " << result << endl;
+
+    return result;
 }
 
 intset::intset() : encoding(ENC_INT8), length(0)

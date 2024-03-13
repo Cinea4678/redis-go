@@ -1,6 +1,6 @@
 module redis-go
 
-go 1.21
+go 1.22
 
 require (
 	github.com/cinea4678/resp3 v0.1.1

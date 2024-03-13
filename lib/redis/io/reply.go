@@ -42,7 +42,7 @@ func AddReplyError(client *core.RedisClient, err error) {
 // AddReplyString 向客户端发回一个字符串
 func AddReplyString(client *core.RedisClient, str string) {
 	var resType byte
-	if len(str) > 32 {
+	if len(str) > 64 {
 		resType = resp3.TypeBlobString
 	} else {
 		resType = resp3.TypeSimpleString
@@ -71,7 +71,7 @@ func sendRawReplyToClient(client *core.RedisClient, bytes []byte) {
 	if err != nil {
 		log.Printf("err: %v", err)
 	}
-	if client.Flags&RedisCloseAfterReply == 1 {
+	if client.Flags&RedisCloseAfterReply > 0 {
 		freeClient(client)
 	}
 }

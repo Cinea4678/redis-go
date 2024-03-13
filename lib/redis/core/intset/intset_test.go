@@ -2,9 +2,11 @@ package intset
 
 import (
 	"testing"
+	"time"
 )
 
 func TestIntset(t *testing.T) {
+	st := time.Now()
 	s := NewIntset()
 
 	// Test Add
@@ -49,4 +51,35 @@ func TestIntset(t *testing.T) {
 	if res := s.IntsetBlobLen(); res != 2 {
 		t.Errorf("IntsetBlobLen() failed, got %d, want 2", res)
 	}
+
+	et := time.Now()
+	t.Logf("TestIntset finished in %d us.", et.Sub(st).Microseconds())
+}
+
+func TestIntsetUpgrade(t *testing.T) {
+	st := time.Now()
+	s := NewIntset()
+
+	s.IntsetAdd(1)
+	if res := s.IntsetBlobLen(); res != 1 {
+		t.Errorf("IntsetBlobLen() failed, got %d, want %d", res, 1)
+	}
+
+	s.IntsetAdd(256)
+	if res := s.IntsetBlobLen(); res != 4 {
+		t.Errorf("IntsetBlobLen() failed, got %d, want %d", res, 4)
+	}
+
+	s.IntsetAdd(65536)
+	if res := s.IntsetBlobLen(); res != 12 {
+		t.Errorf("IntsetBlobLen() failed, got %d, want %d", res, 12)
+	}
+
+	s.IntsetAdd(4_294_967_296)
+	if res := s.IntsetBlobLen(); res != 32 {
+		t.Errorf("IntsetBlobLen() failed, got %d, want %d", res, 32)
+	}
+
+	et := time.Now()
+	t.Logf("TestIntsetUpgrade finished in %d us.", et.Sub(st).Microseconds())
 }
