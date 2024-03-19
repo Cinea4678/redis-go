@@ -62,6 +62,7 @@ using namespace std;
 * 0xf1（11110001）到0xfd（11111101）之间的每个值都可以被用来表示一个小的整数值。
 * 注意这里没有使用到完整的字节范围，这是因为一些特殊的标识符（如0xfe和0xff）已被预留用于其他目的。
 */
+#define ZIP_INT_4b 0xf0         /* 11110000 */  //用于4位大小的整数0-12，写到encode的后4位
 #define ZIP_INT_IMM_MIN 0xf1    /* 11110001 */
 #define ZIP_INT_IMM_MAX 0xfd    /* 11111101 */
 /*
@@ -120,6 +121,8 @@ private:
     size_t get_prev_len_for_push();
 
 public:
+
+    void output_store();
     ziplist();
     // 将元素插入到表尾
     ZipListResult push(char *bytes, int len);
@@ -324,7 +327,7 @@ ZipListResult ziplist::push(int64_t integer)
 
     uint8_t encoding = 0;
     if (integer >= 0 && integer <= 12) {
-        encoding = ZIP_INT_IMM_MIN + integer;
+        encoding = ZIP_INT_4b + integer;
     } else if (integer >= INT8_MIN && integer <= INT8_MAX) {
         encoding = ZIP_INT_8B;
     } else if (integer >= INT16_MIN && integer <= INT16_MAX) {
@@ -360,7 +363,12 @@ ZipListResult ziplist::push(int64_t integer)
     return Ok;
 }
 
-
+//用于测试，输出底层存储全部内容
+void ziplist::output_store() {
+    for(auto& it : this->store) {
+        cout << static_cast<unsigned int>(it) << " ";
+    }
+}
 
 /****************************************************/
 /**
@@ -566,6 +574,7 @@ static int64_t zipLoadInteger(unsigned char *p, unsigned char encoding) {
 
 int main() {
     ziplist* zp = new ziplist();
+
     // for(auto& it : zp->store) {
     //     cout << static_cast<unsigned int>(it) << " ";
     // }
@@ -580,6 +589,14 @@ int main() {
     // cout<<zp->getZlbytes()<<endl;
     // cout<<zp->getZllen()<<endl;
     // cout<<zp->getZltail()<<endl;
+    
+    //测试push操作
+    char testPushChar[] = "hello"; 
+    zp->push(testPushChar, sizeof(testPushChar));
+    int s = 9, bi = 88;
+    zp->push(s);
+    zp->push(bi);
+    zp->output_store();
     delete zp;
     return 0;
 }
