@@ -2,16 +2,21 @@ package core
 
 import "testing"
 
+const (
+	DictOk = iota
+	DictErr
+)
+
 func TestMapDict(t *testing.T) {
 	dict := Dict{}
 
 	// 测试添加功能
-	if dict.DictAdd("key1", "value1") != dictOk {
+	if dict.DictAdd("key1", "value1") != DictOk {
 		t.Error("Expected dictOk from DictAdd when adding a new key")
 	}
 
 	// 测试重复添加相同的键
-	if dict.DictAdd("key1", "value1") != dictErr {
+	if dict.DictAdd("key1", "value1") != DictErr {
 		t.Error("Expected dictErr from DictAdd when adding a duplicate key")
 	}
 
@@ -21,12 +26,12 @@ func TestMapDict(t *testing.T) {
 	}
 
 	// 测试更新功能
-	if dict.DictUpdate("key1", "value2") != dictOk {
+	if dict.DictUpdate("key1", "value2") != DictOk {
 		t.Error("Expected dictOk from DictUpdate when key exists")
 	}
 
 	// 测试更新不存在的键
-	if dict.DictUpdate("key2", "value2") != dictErr {
+	if dict.DictUpdate("key2", "value2") != DictErr {
 		t.Error("Expected dictErr from DictUpdate when key does not exist")
 	}
 
@@ -41,12 +46,12 @@ func TestMapDict(t *testing.T) {
 	}
 
 	// 测试删除功能
-	if dict.DictRemove("key1") != dictOk {
+	if dict.DictRemove("key1") != DictOk {
 		t.Error("Expected dictOk from DictRemove when key exists")
 	}
 
 	// 测试删除不存在的键
-	if dict.DictRemove("key2") != dictErr {
+	if dict.DictRemove("key2") != DictErr {
 		t.Error("Expected dictErr from DictRemove when key does not exist")
 	}
 
