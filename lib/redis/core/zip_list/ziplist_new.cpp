@@ -4,6 +4,7 @@
 #include <limits>
 #include <cassert>
 #include <iostream>
+#include <cstddef>
 
 using namespace std;
 
@@ -120,7 +121,16 @@ private:
     */
     size_t get_prev_len_for_push();
 
+    /**
+     * 用于给定正向索引index，返回该节点在store中起始节点的位置
+    */
+    size_t locate_pos(int index);
+
 public:
+    /**
+     * 获取以索引pos作为起始地址的长度
+    */
+    size_t get_node_len(size_t pos);
 
     void output_store();
     ziplist();
@@ -363,11 +373,103 @@ ZipListResult ziplist::push(int64_t integer)
     return Ok;
 }
 
+/**
+ * 此处pos指的是能直接放在store[pos]的索引，不是从1开始的位置
+*/
+size_t ziplist:: get_node_len(size_t pos) {
+    size_t res = 0; //返回值
+    size_t p = pos;
+    //定位encoding，并记录prev_length的长度到res中
+    if(this->store[p] == (uint8_t)0xFE) {
+        p += 5;
+        res += 5;
+    }
+    else {
+        p++;
+        res += 1;
+    }
+
+    //store[pos] & 11000000 = 11000000说明是整数
+    //注意==的优先级高于&，要加括号
+    if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0xC0) {
+        uint8_t encoding = store[p];
+        res++;  //记录encoding的长度到res中
+        if (encoding & ZIP_INT_4b == ZIP_INT_4b) {
+            //整数为0-12，什么也不做，没有content
+        }
+        else if(encoding == ZIP_INT_8B) {
+            //8位整数，节点大小+1
+            res += 1;
+        }
+        else if(encoding == ZIP_INT_16B) {
+            //16位整数，节点大小+2
+            res += 2;
+        }
+        else if(encoding == ZIP_INT_24B) {
+            //24位整数，节点大小+3
+            res += 3;
+        }
+        else if(encoding == ZIP_INT_32B) {
+            //32位整数，节点大小+4
+            res += 4;
+        }
+        // else if(encoding == ZIP_INT_64B) {
+        //     //64位整数，节点大小+8
+        //     res += 8;
+        // }
+        else {
+            //64位整数，节点大小+8
+            res += 8;
+        }
+    }
+    //encoding长度1字节，字节数组长度小于63字节
+    else if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0x00) {
+        //encoding长度为1，更新res
+        res += 1;
+        //获取后6位，即为字节的长度，并更新res
+        int len = store[p] & 0x3F;
+        res += len;
+    }
+    //encoding长度2字节，字节数组长度小于16838字节
+    else if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0x40) {
+        //encoding长度为2，更新res
+        res += 2;
+        //获取后14位，即为字节的长度，并更新res
+        int len = ((store[p] & 0x3F) << 8) | store[p+1];
+        res += len;
+    }
+    //encoding长度5字节，字节数组长度大于16838字节
+    else if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0x80) {
+        //encoding长度为5，更新res
+        res += 5;
+        //获取后32位，即为字节的长度，并更新res
+        size_t len = ((uint64_t)store[p+1] << 24) |
+                    ((uint64_t)store[p+2] << 16) |
+                    ((uint64_t)store[p+3] << 8)  |
+                    ((uint64_t)store[p+4]);
+        res += len;
+    }
+    
+    return res;
+}
+
+//TODO
+size_t ziplist::locate_pos(int index) {
+    uint16_t len = this->getZllen();
+    uint32_t tail_pos = this->getZltail();
+    return 1;
+}
+
 //用于测试，输出底层存储全部内容
 void ziplist::output_store() {
     for(auto& it : this->store) {
         cout << static_cast<unsigned int>(it) << " ";
     }
+    cout<<endl;
+    // cout<<endl<<endl;
+    // for(auto& it : this->store) {
+    //     cout << it << " ";
+    // }
 }
 
 /****************************************************/
@@ -591,12 +693,18 @@ int main() {
     // cout<<zp->getZltail()<<endl;
     
     //测试push操作
-    char testPushChar[] = "hello"; 
-    zp->push(testPushChar, sizeof(testPushChar));
+    char testPushChar1[] = "hello"; 
+    zp->push(testPushChar1, sizeof(testPushChar1));
+    // char testPushChar2[] = "216549asdfkpaweigjpoiaajsoighpoawwjoeifhgqeorijgaspofidhaoiwpejsghppwaehijgpafidkn"; 
+    // zp->push(testPushChar2, sizeof(testPushChar2));
     int s = 9, bi = 88;
     zp->push(s);
     zp->push(bi);
     zp->output_store();
+    // 测试字符串节点长度获取
+    cout<<zp->get_node_len(10)<<endl;
+    // 测试整数节点长度获取
+    cout<<zp->get_node_len(20)<<endl;
     delete zp;
     return 0;
 }
