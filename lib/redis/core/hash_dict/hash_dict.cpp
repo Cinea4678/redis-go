@@ -1,5 +1,7 @@
-#include <unordered_map>
+#include "hash_table.h"
+#include <iterator>
 #include <string>
+
 using namespace std;
 
 extern "C" {
@@ -12,7 +14,7 @@ extern "C" {
 class hash_dict {
     int dict_add(string key);
 
-    unordered_map<string, int> map;
+    hash_table map;
 
 public:
     int dict_add(string key, int val);
@@ -22,46 +24,39 @@ public:
     void dict_foreach(uintptr_t callback_h);
 };
 
-int hash_dict::dict_add(string key, int val)
-{
-    auto res = map.insert({ key, val });
-    return res.second == true ? OK : Err;
+int hash_dict::dict_add(string key, int val) {
+    auto res = map.insert(key, val);
+    return res == hashOk ? OK : Err;
 }
 
-void hash_dict::dict_foreach(uintptr_t callback_h)
-{
-    for (const auto& p : map) {
-        goCallbackCharInt(callback_h, (char*)p.first.c_str(), p.second);
+void hash_dict::dict_foreach(uintptr_t callback_h) {
+    for (hash_table_iterator it = map.begin(); it != map.end(); ++it) {
+        goCallbackCharInt(callback_h, (char*)it.key().c_str(), it.val());
     }
 }
 
-int hash_dict::dict_remove(string key)
-{
-    auto res = map.find(key);
-    if (res != map.end()) {
-        auto val = res->second;
-        map.erase(res);
+int hash_dict::dict_remove(string key) {
+    hash_table_iterator it = map.find(key);
+    if (it != map.end()) {
+        auto val = it.val();
+        map.remove(key);
         return val;
-    }
-    else {
+    } else {
         return -1;
     }
 }
 
-int hash_dict::dict_find(string key)
-{
-    auto iter = map.find(key);
-    if (iter == map.end()) {
+int hash_dict::dict_find(string key) {
+    hash_table_iterator it = map.find(key);
+    if (it == map.end()) {
         return -1;
-    }
-    else {
-        return iter->second;
+    } else {
+        return it.val();
     }
 }
 
-int hash_dict::dict_len()
-{
-    return map.size();
+int hash_dict::dict_len() {
+    return map.getsize();
 }
 
 void* NewHashDict() {
@@ -73,7 +68,6 @@ int ReleaseHashDict(void* hd) {
     delete static_cast<hash_dict*>(hd);
     return OK;
 }
-
 
 int DictAdd(void* hd, const char* key, int val) {
     return static_cast<hash_dict*>(hd)->dict_add(key, val);
@@ -91,7 +85,6 @@ int DictLen(void* hd) {
     return static_cast<hash_dict*>(hd)->dict_len();
 }
 
-void DictForEach(void* hd, uintptr_t callback_h)
-{
+void DictForEach(void* hd, uintptr_t callback_h) {
     return static_cast<hash_dict*>(hd)->dict_foreach(callback_h);
 }

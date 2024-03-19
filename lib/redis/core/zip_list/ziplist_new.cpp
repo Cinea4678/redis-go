@@ -187,6 +187,12 @@ public:
     */
     // ZipListResult zlnode2mem(ziplist_node zn);
     void output_store();
+
+    /**
+     * 按顺序输出当前ziplist中的内容
+    */
+    void output_node_content();
+
     ziplist();
     // 将元素插入到表尾
     ZipListResult push(char *bytes, int len);
@@ -418,6 +424,29 @@ ziplist::ziplist()
     this->int2uint8(zlbytes);
     this->int2uint8(zltail);
     this->int2uint8(zllen);
+}
+
+void ziplist::output_node_content() {
+    cout<<endl;
+    int zl_len = this->getZllen();
+    ziplist_node* zlnode = nullptr;
+    for(int i = 1; i<=zl_len; i++) {
+        zlnode = this->index(i);
+        int64_t val = ziplist::get_integer(zlnode);
+        cout<<i<<": ";
+        if(val == LLONG_MAX) {
+            vector<uint8_t> cur_content = ziplist::get_byte_array(zlnode);
+            for (uint8_t byte : cur_content) {
+                cout << byte;
+            }
+            cout<<endl;
+        }
+        else {
+            int64_t num = ziplist::get_integer(zlnode);
+            cout<<num<<endl;
+        }
+    }
+    cout<<endl;
 }
 
 ZipListResult ziplist::push(char *bytes, int len)
@@ -1352,27 +1381,10 @@ ziplist_node* ziplist::prev(ziplist_node* cur) {
 
 int main() {
     ziplist* zp = new ziplist();
-
-    // for(auto& it : zp->store) {
-    //     cout << static_cast<unsigned int>(it) << " ";
-    // }
-    // cout<<endl;
-    // cout<<zp->getZlbytes()<<endl;
-    // cout<<zp->getZllen()<<endl;
-    // cout<<zp->getZltail()<<endl;
-    // cout<<endl;
-    // zp->setZlbytes(66);
-    // zp->setZllen(55);
-    // zp->setZltail(44);
-    // cout<<zp->getZlbytes()<<endl;
-    // cout<<zp->getZllen()<<endl;
-    // cout<<zp->getZltail()<<endl;
     
     //测试push操作
     char testPushChar1[] = "hello"; 
     zp->push(testPushChar1, sizeof(testPushChar1));
-    // char testPushChar2[] = "216549asdfkpaweigjpoiaajsoighpoawwjoeifhgqeorijgaspofidhaoiwpejsghppwaehijgpafidkn"; 
-    // zp->push(testPushChar2, sizeof(testPushChar2));
     int s = 9, bi = 88;
     zp->push(s);
     zp->push(bi);
@@ -1387,15 +1399,6 @@ int main() {
     // cout<<zp->locate_pos(3)<<endl;
     // 测试mem2zlnode
     ziplist_node* zlnode = new ziplist_node();
-    // if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
-    //     zlnode->output_zlnode();
-    // }
-    // if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
-    //     zlnode->output_zlnode();
-    // }
-    // else {
-    //     cout<<"Err!"<<endl;
-    // }
 
     //测试查找具有指定值的节点
     char testPushChar2[] = "testPushChar2"; 
@@ -1458,19 +1461,20 @@ int main() {
     // }
 
     //测试insert
-    zp->output_store();
+    // zp->output_store();
     char testInsert[] = "after second";
     zp->insert(2, testInsert, sizeof(testInsert));
-    zp->output_store();
+    // zp->output_store();
 
     char testStartInsert[] = "be first";
     zp->insert(0, testStartInsert, sizeof(testStartInsert));
-    zp->output_store();
+    // zp->output_store();
 
     int testInsertInt = 777;
     zp->insert(4, testInsertInt);
     cout<<zp->index(5)->value<<endl;
-    zp->output_store();
+    // zp->output_store();
+    // zp->output_node_content();
 
     //测试delete_
     // zlnode = zp->find(777);
@@ -1506,12 +1510,45 @@ int main() {
     }
     else {
         if (zp->delete_range(zlnode, 3) == Ok) {
-            zp->output_store();
+            zp->output_node_content();
+            // zp->output_store();
         }
         else {
             cout<< "Err!" <<endl;
         }
     }
+
+    //测试较长字符串的插入
+    // char testLongStr[] = "longlonglonglonglonglonglonglong\
+    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+    // longlonglonglonglonglonglonglonglonglonglonglonglonglong";
+    // zp->insert(2, testLongStr, sizeof(testLongStr));
+    // zp->output_node_content();
+
+    zp->insert(3, 333);
+    // zp->output_node_content();
+
+    //较短字符串的插入
+    char testShortStr[] = "shortshort";
+    zp->insert(4, testShortStr, sizeof(testShortStr));
+    zp->output_node_content();
+
+    // zlnode = zp->find(testShortStr, sizeof(testShortStr));
+    // if(zlnode == nullptr) {
+    //     cout<<"Err"<<endl;
+    // }
+    // else {
+    //     if (zp->delete_(zlnode) == Ok) {
+    //         zp->output_node_content();
+    //     }
+    //     else {
+    //         cout<< "Err!" <<endl;
+    //     }
+    // }
+    
 
     //测试blob_len()和len()
     // cout<<zp->blob_len()<<endl;
