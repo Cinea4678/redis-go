@@ -157,8 +157,14 @@ public:
     */
     size_t locate_pos(int index);
 
-    ZipListResult mem2zlnode(size_t pos, ziplist_node* & zp);     //底层存储到zlnode结构体
-    ZipListResult zlnode2mem(ziplist_node zn);//zlnode结构体到底层存储
+    /**
+     * 底层存储到zlnode结构体
+    */
+    ZipListResult mem2zlnode(size_t pos, ziplist_node* & zp); 
+    /**
+     * zlnode结构体到底层存储
+    */
+    ZipListResult zlnode2mem(ziplist_node zn);
 
     void output_store();
     ziplist();
