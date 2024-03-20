@@ -87,13 +87,34 @@ struct ziplist_node
     int previous_entry_length;
     uint8_t encoding;
     int ba_length; // bit array length ⚠️ 这和书上的定义是不一样的，这里是为了方便写样例
-    uint8_t content[];
-    // vector<uint8_t> content; // ⚠️ 在实现时建议换成上面那个uint8_t[]
+    uint64_t value; // 当压缩列表节点存的是数字时，存在这里面
+    // uint8_t content[];
+    // c++中不建议使用uint8_t，建议使用vector<uint8_t>
+    vector<uint8_t> content; // ⚠️ 在实现时建议换成上面那个uint8_t[]
 
     ziplist_node(char *bytes, int len);
     ziplist_node(int64_t integer);
-    ZipListResult mem2zlnode(size_t pos);     //底层存储到zlnode结构体
-    ZipListResult zlnode2mem(ziplist_node zn);               //zlnode结构体到底层存储
+    ziplist_node() {};
+
+    // 测试 用于输出zlnode的内容
+    void output_zlnode() {
+        cout<<endl;
+        cout<<"previous_entry_length: "<< previous_entry_length << endl;
+        cout<<"encoding: "<< encoding << endl;
+        cout<<"ba_length: "<< ba_length << endl;
+        if (content.size()) {
+            cout<<"content: ";
+            for(auto& it : content) {
+                cout<< it <<' ';
+            }
+        }
+        else {
+            cout<<"value: "<< value << endl;
+        }
+
+    }
+
+    ~ziplist_node() {};
 };
 
 class ziplist
@@ -122,15 +143,22 @@ private:
     size_t get_prev_len_for_push();
 
     /**
-     * 用于给定正向索引index，返回该节点在store中起始节点的位置
+     * 获取在vector中起始位置为pos的节点的previous_entry_length
     */
-    size_t locate_pos(int index);
+    size_t get_prev_length(size_t pos);
 
 public:
     /**
      * 获取以索引pos作为起始地址的长度
     */
     size_t get_node_len(size_t pos);
+    /**
+     * 用于给定正向索引index，返回该节点在store中起始节点的位置
+    */
+    size_t locate_pos(int index);
+
+    ZipListResult mem2zlnode(size_t pos, ziplist_node* & zp);     //底层存储到zlnode结构体
+    ZipListResult zlnode2mem(ziplist_node zn);//zlnode结构体到底层存储
 
     void output_store();
     ziplist();
@@ -220,6 +248,117 @@ void ziplist::setZllen(uint16_t zllen) {
         // 假设 zllen 紧跟在 zltail 后面
         this->store[2 * sizeof(uint32_t) + i] = reinterpret_cast<uint8_t*>(&zllen)[i];
     }
+}
+
+/**
+ * 底层存储到zlnode结构体
+ * 此处pos指的是能直接放在store[pos]的索引，不是从1开始的位置
+ * 以引用的形式返回ziplist_node
+ * 返回值是操作成功或失败，操作失败原因为编码encoding找不到对应
+*/
+ZipListResult ziplist::mem2zlnode(size_t pos, ziplist_node* & zp) {
+    size_t p = pos;
+    zp = new ziplist_node();
+    zp->previous_entry_length = this->get_node_len(p);
+
+    //定位encoding，并记录prev_length的长度到res中
+    if(this->store[p] == (uint8_t)0xFE) {
+        p += 5;
+    }
+    else {
+        p += 1;
+    }
+
+    //store[pos] & 11000000 = 11000000说明是整数
+    if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0xC0) {
+        zp->encoding = (uint8_t)store[p];
+        uint8_t encoding = store[p];
+        p += 1;
+        if (encoding & ZIP_INT_4b == ZIP_INT_4b) {
+            //整数为0-12，content长度为1，只有低4位是有效的
+            zp->value = encoding & 0x0F;
+            zp->ba_length = 0;
+        }
+        else if(encoding == ZIP_INT_8B) {
+            //8位整数
+            zp->value = (uint64_t)store[p];
+            zp->ba_length = 1;
+        }
+        else if(encoding == ZIP_INT_16B) {
+            //16位整数
+            zp->value = static_cast<uint16_t>(store[p]) |
+           static_cast<uint16_t>(store[p + 1]) << 8;
+           zp->ba_length = 2;
+
+        }
+        else if(encoding == ZIP_INT_24B) {
+            //24位整数
+            zp->value = static_cast<uint32_t>(store[p]) |
+           static_cast<uint32_t>(store[p + 1]) << 8 |
+           static_cast<uint32_t>(store[p + 2]) << 16;
+           zp->ba_length = 3;
+        }
+        else if(encoding == ZIP_INT_32B) {
+            //32位整数
+             zp->value = static_cast<uint32_t>(store[p]) |
+           static_cast<uint32_t>(store[p + 1]) << 8 |
+           static_cast<uint32_t>(store[p + 2]) << 16 |
+           static_cast<uint32_t>(store[p + 3]) << 24;
+           zp->ba_length = 4;
+        }
+        else {
+            //64位整数，节点大小+8
+            zp->value = static_cast<uint64_t>(store[p]) |
+           static_cast<uint64_t>(store[p + 1]) << 8 |
+           static_cast<uint64_t>(store[p + 2]) << 16 |
+           static_cast<uint64_t>(store[p + 3]) << 24 |
+           static_cast<uint64_t>(store[p + 4]) << 32 |
+           static_cast<uint64_t>(store[p + 5]) << 40 |
+           static_cast<uint64_t>(store[p + 6]) << 48 |
+           static_cast<uint64_t>(store[p + 7]) << 56;
+           zp->ba_length = 8;
+        }
+    }
+    //encoding长度1字节，字节数组长度小于63字节
+    else if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0x00) {
+        //encoding长度为1
+        //获取后6位，即为字节的长度，并更新ba->length
+        size_t len = store[p] & 0x3F;
+        zp->ba_length = len;
+        p += 1;
+        for(size_t i = 0; i < len; i++) {
+            zp->content.push_back(store[p+i]);
+        }
+    }
+    //encoding长度2字节，字节数组长度小于16838字节
+    else if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0x40) {
+        //encoding长度为2
+        //获取后14位，即为字节的长度，并更新ba->length
+        size_t len = ((store[p] & 0x3F) << 8) | store[p+1];
+        zp->ba_length = len;
+        p += 2;
+        for(size_t i = 0; i < len; i++) {
+            zp->content.push_back(store[p+i]);
+        }
+    }
+    //encoding长度5字节，字节数组长度大于16838字节
+    else if(((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0x80) {
+        //encoding长度为5
+        //获取后32位，即为字节的长度，并更新res
+        size_t len = ((uint64_t)store[p+1] << 24) |
+                    ((uint64_t)store[p+2] << 16) |
+                    ((uint64_t)store[p+3] << 8)  |
+                    ((uint64_t)store[p+4]);
+        p += 5;
+        for(size_t i = 0; i < len; i++) {
+            zp->content.push_back(store[p+i]);
+        }
+    }
+    else {
+        // 解码错误
+        return Err;
+    }
+    return Ok;
 }
 
 size_t ziplist::get_prev_len_for_push() {
@@ -385,7 +524,7 @@ size_t ziplist:: get_node_len(size_t pos) {
         res += 5;
     }
     else {
-        p++;
+        p += 1;
         res += 1;
     }
 
@@ -453,12 +592,43 @@ size_t ziplist:: get_node_len(size_t pos) {
     return res;
 }
 
-//TODO
-size_t ziplist::locate_pos(int index) {
-    uint16_t len = this->getZllen();
-    uint32_t tail_pos = this->getZltail();
-    return 1;
+size_t ziplist::get_prev_length(size_t pos) {
+    size_t res = 0; //返回值
+    size_t p = pos;
+    if(this->store[p] == (uint8_t)0xFE) {
+        // 对于小端字节序：
+        res = ((uint32_t)store[p+4] << 24) |
+                    ((uint32_t)store[p+3] << 16) |
+                    ((uint32_t)store[p+2] << 8)  |
+                    ((uint32_t)store[p+1]);
+    }   
+    else {
+        res = (size_t)this->store[p];
+    }
+    return res;
 }
+
+/**
+ * 用于给定正向索引index，返回该节点在store中起始节点的位置
+*/
+size_t ziplist::locate_pos(int index) {
+    if (index <= 0) {
+        return 0;
+    }
+    uint16_t len = this->getZllen();
+    uint32_t pos = this->getZltail();
+    //若列表为空，直接返回0
+    if(len == 0) {
+        return 0;
+    }
+    int rev_index = len - index;
+    for(int i = 0; i<rev_index; i++) {
+        size_t prev_length = this->get_prev_length(pos);
+        pos -= prev_length;
+    }
+    return pos;
+}
+
 
 //用于测试，输出底层存储全部内容
 void ziplist::output_store() {
@@ -471,208 +641,6 @@ void ziplist::output_store() {
     //     cout << it << " ";
     // }
 }
-
-/****************************************************/
-/**
- * 将大小为bufSize的一段buf写到store中的指定位置
-*/
-void static insertEntry(vector<uint8_t>& store, size_t pos, const char* buf, size_t bufSize) {
-    // 确保pos不会超出store的当前大小
-    pos = min(pos, store.size());
-    // 扩展store的大小以容纳新条目
-    store.resize(store.size() + bufSize);
-    // 如果是在vector的中间或开头插入，需要移动现有的元素来为新元素腾出空间
-    if (pos < store.size() - bufSize) {
-        move_backward(store.begin() + pos, store.end() - bufSize, store.end());
-    }
-    // 复制buf到store中的指定位置
-    copy(buf, buf + bufSize, store.begin() + pos);
-}
-
-/* 
- * 以 encoding 指定的编码方式，将整数值 value 写入到 p 。
- */
-static void zipSaveInteger(unsigned char *p, int64_t value, unsigned char encoding) {
-    int16_t i16;
-    int32_t i32;
-    int64_t i64;
-
-    //TODO 大小端序
-    if (encoding == ZIP_INT_8B) {
-        ((int8_t*)p)[0] = (int8_t)value;
-    } else if (encoding == ZIP_INT_16B) {
-        i16 = value;
-        memcpy(p,&i16,sizeof(i16));
-        // memrev16ifbe(p);
-    } else if (encoding == ZIP_INT_24B) {
-        i32 = value<<8;
-        // memrev32ifbe(&i32);
-        memcpy(p,((uint8_t*)&i32)+1,sizeof(i32)-sizeof(uint8_t));
-    } else if (encoding == ZIP_INT_32B) {
-        i32 = value;
-        memcpy(p,&i32,sizeof(i32));
-        // memrev32ifbe(p);
-    } else if (encoding == ZIP_INT_64B) {
-        i64 = value;
-        memcpy(p,&i64,sizeof(i64));
-        // memrev64ifbe(p);
-    } else if (encoding >= ZIP_INT_IMM_MIN && encoding <= ZIP_INT_IMM_MAX) {
-        /* Nothing to do, the value is stored in the encoding itself. */
-    } else {
-        assert(NULL);
-    }
-}
-
-/* Convert a string into a long long. Returns 1 if the string could be parsed
- * into a (non-overflowing) long long, 0 otherwise. The value will be set to
- * the parsed value when appropriate. */
-int string2ll(const char *s, size_t slen, long long *value) {
-    const char *p = s;
-    size_t plen = 0;
-    int negative = 0;
-    unsigned long long v;
-
-    if (plen == slen)
-        return 0;
-
-    /* Special case: first and only digit is 0. */
-    if (slen == 1 && p[0] == '0') {
-        if (value != NULL) *value = 0;
-        return 1;
-    }
-
-    if (p[0] == '-') {
-        negative = 1;
-        p++; plen++;
-
-        /* Abort on only a negative sign. */
-        if (plen == slen)
-            return 0;
-    }
-
-    /* First digit should be 1-9, otherwise the string should just be 0. */
-    if (p[0] >= '1' && p[0] <= '9') {
-        v = p[0]-'0';
-        p++; plen++;
-    } else if (p[0] == '0' && slen == 1) {
-        *value = 0;
-        return 1;
-    } else {
-        return 0;
-    }
-
-    while (plen < slen && p[0] >= '0' && p[0] <= '9') {
-        if (v > (ULLONG_MAX / 10)) /* Overflow. */
-            return 0;
-        v *= 10;
-
-        if (v > (ULLONG_MAX - (p[0]-'0'))) /* Overflow. */
-            return 0;
-        v += p[0]-'0';
-
-        p++; plen++;
-    }
-
-    /* Return if not all bytes were used. */
-    if (plen < slen)
-        return 0;
-
-    if (negative) {
-        if (v > ((unsigned long long)(-(LLONG_MIN+1))+1)) /* Overflow. */
-            return 0;
-        if (value != NULL) *value = -v;
-    } else {
-        if (v > LLONG_MAX) /* Overflow. */
-            return 0;
-        if (value != NULL) *value = v;
-    }
-    return 1;
-}
-
-/* 
- * 检查 entry 中指向的字符串能否被编码为整数。
- * 如果可以的话，
- * 将编码后的整数保存在指针 v 的值中，并将编码的方式保存在指针 encoding 的值中。
- * 注意，这里的 entry 和前面代表节点的 entry 不是一个意思。
- */
-static int zipTryEncoding(uint8_t *entry, uint32_t entrylen, uint64_t *v, uint8_t *encoding) {
-    //负责存储value
-    long long value;
-
-    // 忽略太长或太短的字符串
-    if (entrylen >= 32 || entrylen == 0) 
-        return Err;
-
-    // 尝试转换
-    if (string2ll((char*)entry,entrylen,&value)) {
-
-        /* Great, the string can be encoded. Check what's the smallest
-         * of our encoding types that can hold this value. */
-        // 转换成功，以从小到大的顺序检查适合值 value 的编码方式
-        if (value >= 0 && value <= 12) {
-            *encoding = ZIP_INT_IMM_MIN+value;
-        } else if (value >= INT8_MIN && value <= INT8_MAX) {
-            *encoding = ZIP_INT_8B;
-        } else if (value >= INT16_MIN && value <= INT16_MAX) {
-            *encoding = ZIP_INT_16B;
-        } else if (value >= INT24_MIN && value <= INT24_MAX) {
-            *encoding = ZIP_INT_24B;
-        } else if (value >= INT32_MIN && value <= INT32_MAX) {
-            *encoding = ZIP_INT_32B;
-        } else {
-            *encoding = ZIP_INT_64B;
-        }
-
-        // 记录值到指针
-        *v = value;
-
-        // 返回转换成功标识
-        return Ok;
-    }
-
-    // 转换失败
-    return Err;
-}
-
-
-
-/* 
- * 以 encoding 指定的编码方式，读取并返回指针 p 中的整数值。
- */
-static int64_t zipLoadInteger(unsigned char *p, unsigned char encoding) {
-    int16_t i16;
-    int32_t i32;
-    int64_t i64, ret = 0;
-
-    //TODO 大小端序
-    if (encoding == ZIP_INT_8B) {
-        ret = ((int8_t*)p)[0];
-    } else if (encoding == ZIP_INT_16B) {
-        memcpy(&i16,p,sizeof(i16));
-        // memrev16ifbe(&i16);
-        ret = i16;
-    } else if (encoding == ZIP_INT_32B) {
-        memcpy(&i32,p,sizeof(i32));
-        // memrev32ifbe(&i32);
-        ret = i32;
-    } else if (encoding == ZIP_INT_24B) {
-        i32 = 0;
-        memcpy(((uint8_t*)&i32)+1,p,sizeof(i32)-sizeof(uint8_t));
-        // memrev32ifbe(&i32);
-        ret = i32>>8;
-    } else if (encoding == ZIP_INT_64B) {
-        memcpy(&i64,p,sizeof(i64));
-        // memrev64ifbe(&i64);
-        ret = i64;
-    } else if (encoding >= ZIP_INT_IMM_MIN && encoding <= ZIP_INT_IMM_MAX) {
-        ret = (encoding & ZIP_INT_IMM_MASK)-1;
-    } else {
-        assert(NULL);
-    }
-
-    return ret;
-}
-
 
 int main() {
     ziplist* zp = new ziplist();
@@ -702,9 +670,25 @@ int main() {
     zp->push(bi);
     zp->output_store();
     // 测试字符串节点长度获取
-    cout<<zp->get_node_len(10)<<endl;
+    // cout<<zp->get_node_len(10)<<endl;
     // 测试整数节点长度获取
-    cout<<zp->get_node_len(20)<<endl;
+    // cout<<zp->get_node_len(20)<<endl;
+    // 测试给定一个正向索引，返回其在vector中的位置
+    cout<<zp->locate_pos(1)<<endl;
+    cout<<zp->locate_pos(2)<<endl;
+    cout<<zp->locate_pos(3)<<endl;
+    // 测试mem2zlnode
+    ziplist_node* zlnode = new ziplist_node();
+    // if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
+    //     zlnode->output_zlnode();
+    // }
+    if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
+        zlnode->output_zlnode();
+    }
+    else {
+        cout<<"Err!"<<endl;
+    }
+    delete zlnode;
     delete zp;
     return 0;
 }
