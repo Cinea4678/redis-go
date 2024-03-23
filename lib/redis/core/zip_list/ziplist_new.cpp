@@ -164,7 +164,7 @@ public:
     /**
      * zlnode结构体到底层存储
     */
-    ZipListResult zlnode2mem(ziplist_node zn);
+    // ZipListResult zlnode2mem(ziplist_node zn);
 
     void output_store();
     ziplist();
@@ -172,10 +172,11 @@ public:
     ZipListResult push(char *bytes, int len);
     ZipListResult push(int64_t integer);
 
+    //TODO
     ZipListResult insert(int pos, char *bytes, int len);
     ZipListResult insert(int pos, int64_t integer);
 
-    // 返回压缩列表给定索引上的节点。
+    // 返回压缩列表给定索引上的节点，此处索引是从1开始的
     ziplist_node *index(int n);
 
     // 查找具有指定值的节点
@@ -183,14 +184,17 @@ public:
     ziplist_node *find(int64_t integer);
 
     // 返回指定节点的下一个节点
+    //TODO
     ziplist_node *next(ziplist_node *cur);
 
     // 返回指定节点的上一个节点
+    //TODO
     ziplist_node *prev(ziplist_node *cur);
 
     static int64_t get_integer(ziplist_node *cur);
-    static char *get_byte_array(ziplist_node *cur);
+    static vector<uint8_t> get_byte_array(ziplist_node *cur);
 
+    //TODO
     ZipListResult delete_(ziplist_node *cur);
     ZipListResult delete_range(ziplist_node *start, int len);
 
@@ -614,6 +618,18 @@ size_t ziplist::get_prev_length(size_t pos) {
     return res;
 }
 
+// 返回压缩列表给定索引上的节点，此处的索引是从1开始的
+ziplist_node *ziplist::index(int n)
+{
+    ziplist_node* zlnode = new ziplist_node();
+    if (this->mem2zlnode(this->locate_pos(n), zlnode) == Ok) {
+        return zlnode;
+    }
+    else {
+        return nullptr;
+    }
+}
+
 /**
  * 用于给定正向索引index，返回该节点在store中起始节点的位置
 */
@@ -635,6 +651,43 @@ size_t ziplist::locate_pos(int index) {
     return pos;
 }
 
+/**
+ * 如果没找到，返回nullptr
+*/
+ziplist_node* ziplist::find(char* bytes, int len) {
+    size_t zl_len = this->getZllen();
+    ziplist_node* zlnode = nullptr;
+    for(int i = 1; i <= zl_len; i++) {
+        zlnode = this->index(i);
+        vector<uint8_t> cur_content = ziplist::get_byte_array(zlnode);
+        if(cur_content.empty()) {
+            continue;
+        }
+        if(equal(cur_content.begin(), cur_content.end(), bytes, bytes + len)) {
+            return zlnode;
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * 如果没找到，返回nullptr
+*/
+ziplist_node* ziplist::find(int64_t integer) {
+    size_t zl_len = this->getZllen();
+    ziplist_node* zlnode = nullptr;
+    for(int i = 1; i <= zl_len; i++) {
+        zlnode = this->index(i);
+        int64_t val = ziplist::get_integer(zlnode);
+        if(val == LLONG_MAX) {
+            continue;
+        }
+        if(val == integer) {
+            return zlnode;
+        }
+    }
+    return nullptr;
+}
 
 //用于测试，输出底层存储全部内容
 void ziplist::output_store() {
@@ -646,6 +699,34 @@ void ziplist::output_store() {
     // for(auto& it : this->store) {
     //     cout << it << " ";
     // }
+}
+
+/**
+ * 若该节点存储的是字符数组，则返回0xFFFFFFFFFFFFFFFF
+*/
+int64_t ziplist::get_integer(ziplist_node *cur) {
+    if(cur->content.size()) {
+        return LLONG_MAX;
+    }
+    return cur->value;
+}
+
+/**
+ * 若该节点存储的是数字，则返回空vector
+*/
+vector<uint8_t> ziplist::get_byte_array(ziplist_node* cur) {
+    if(!cur->content.size()) {
+        return {};
+    }
+    return cur->content;
+}
+
+int ziplist::blob_len() {
+    return store.size();
+}
+
+int ziplist::len() {
+    return this->getZllen();
 }
 
 int main() {
@@ -674,26 +755,54 @@ int main() {
     int s = 9, bi = 88;
     zp->push(s);
     zp->push(bi);
-    zp->output_store();
+    // zp->output_store();
     // 测试字符串节点长度获取
     // cout<<zp->get_node_len(10)<<endl;
     // 测试整数节点长度获取
     // cout<<zp->get_node_len(20)<<endl;
     // 测试给定一个正向索引，返回其在vector中的位置
-    cout<<zp->locate_pos(1)<<endl;
-    cout<<zp->locate_pos(2)<<endl;
-    cout<<zp->locate_pos(3)<<endl;
+    // cout<<zp->locate_pos(1)<<endl;
+    // cout<<zp->locate_pos(2)<<endl;
+    // cout<<zp->locate_pos(3)<<endl;
     // 测试mem2zlnode
     ziplist_node* zlnode = new ziplist_node();
     // if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
     //     zlnode->output_zlnode();
     // }
-    if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
-        zlnode->output_zlnode();
+    // if (zp->mem2zlnode(zp->locate_pos(1), zlnode) == Ok) {
+    //     zlnode->output_zlnode();
+    // }
+    // else {
+    //     cout<<"Err!"<<endl;
+    // }
+
+    //测试查找具有指定值的节点
+    char testPushChar2[] = "testPushChar2"; 
+    char testNullStr[] = "1235465";
+    zp->push(testPushChar2, sizeof(testPushChar2));
+    zp->push(21);
+    zlnode = zp->find(testPushChar2, sizeof(testPushChar2));
+    // zlnode = zp->find(testNullStr, sizeof(testNullStr));
+    if (zlnode) {
+        cout<< zlnode->content.data() <<endl;
     }
     else {
-        cout<<"Err!"<<endl;
+        cout<< "no str"<<endl;
     }
+
+    zlnode = zp->find(9);
+    // zlnode = zp->find(64);
+    if(zlnode) {
+        cout<< zlnode->value << endl;
+    }
+    else {
+        cout<<"no number"<<endl;
+    }
+
+    //测试blob_len()和len()
+    cout<<zp->blob_len()<<endl;
+    cout<<zp->len()<<endl;
+
     delete zlnode;
     delete zp;
     return 0;
