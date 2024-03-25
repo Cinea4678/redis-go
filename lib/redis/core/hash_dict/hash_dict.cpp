@@ -1,5 +1,4 @@
 #include "hash_table.h"
-#include <iterator>
 #include <string>
 
 using namespace std;
