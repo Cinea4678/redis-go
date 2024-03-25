@@ -74,14 +74,17 @@ public:
     // 分配内存
     hash_table(const unsigned long size = default_ht_size)
         : size(size), sizemask(size - 1), used(0) {
-        table = size > 0 ? new hash_entry*[size]() : nullptr;
-        for (unsigned long i = 0; i < size; ++i)
-            table[i] = nullptr;
+        try {
+            table = size > 0 ? new hash_entry*[size]() : nullptr;
+            for (unsigned long i = 0; i < size; ++i)
+                table[i] = nullptr;
+        } catch (const std::bad_alloc& e) {
+            std::cerr << "Memory allocation failed during hash_table init: "
+                      << e.what() << endl;
+            delete[] table; // 确保释放分配失败前的内存
+        }
     }
-    ~hash_table() {
-        // 使用delete[]来释放对象数组
-        delete[] table;
-    }
+    ~hash_table() { delete[] table; }
 
     // 负载因子
     inline float load_factor() const {
