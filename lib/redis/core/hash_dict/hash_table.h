@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <random>
 #include <string>
 
 using namespace std;
@@ -107,6 +108,10 @@ public:
        返回值：删除key对应的val */
     int remove(const string& key);
 
+    /* 随机返回n个指向哈希表条目的迭代器
+       返回值：指向随机条目的迭代器数组 */
+    vector<hash_table_iterator> random(size_t n);
+
     // 清空哈希表（不重置为初始大小）
     void clear();
 
@@ -122,7 +127,9 @@ public:
     // 尾后迭代器
     hash_table_iterator end() const;
 
-    int getsize() const { return this->size; };
+    int getSize() const { return this->size; };
+
+    bool isEmpty() const { return this->used == 0; }
 
 private:
     // 哈希表数组，存指向哈希表第一排节点的指针
@@ -226,9 +233,20 @@ private:
 
     // 移动到下一个有效元素
     void advance() {
+        // 如果为有效节点，则直接到下一个
         if (entry) {
             entry = entry->next;
         }
+
+        // 检查是否到达了最后一个节点，或者当前已经是尾后迭代器
+        if (!entry && bucket > ht->sizemask) {
+            // 设置为尾后迭代器
+            bucket = ht->size;
+            entry = nullptr;
+            return;
+        }
+
+        // next为空，到下一个桶的开头找
         while (!entry && bucket < ht->size) {
             entry = ht->table[bucket++];
         }

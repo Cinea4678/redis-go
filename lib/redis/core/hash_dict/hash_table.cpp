@@ -64,7 +64,7 @@ int hash_table::insert(const string& key, const int& val) {
         }
         return hashOk;
     } catch (const std::bad_alloc& e) {
-        std::cerr << "Memory allocation failed during hash_table insert: "
+        std::cerr << "[HashTable] Memory allocation failed during insert: "
                   << e.what() << endl;
         delete new_entry; // 确保释放分配失败前的内存
         return hashErr;
@@ -127,6 +127,52 @@ void hash_table::clear() {
     */
 }
 
+// 随机返回一个迭代器指向哈希表中的随机条目
+vector<hash_table_iterator> hash_table::random(size_t n) {
+    vector<hash_table_iterator> result;
+
+    if (n <= 0) {
+        cerr << "[HashTable] Invalid number in getting random elements" << endl;
+        return result;
+    }
+
+    if (isEmpty()) {
+        cerr << "[HashTable] Getting elements in empty hash table" << endl;
+        return result;
+    }
+
+    // 随机数生成器初始化
+    random_device rd;
+    mt19937 gen(rd());
+    vector<int> randomIndexes(n);
+    uniform_int_distribution<> distrib(0, sizemask);
+
+    // 生成n个随机数并排序
+    for (int& index : randomIndexes) {
+        index = distrib(gen);
+    }
+    sort(randomIndexes.begin(), randomIndexes.end());
+
+    hash_table_iterator it = begin();
+    int cur = 0;
+    for (int target : randomIndexes) {
+        // 移动迭代器到下一个目标位置
+        for (int i = 0; i < target - cur; ++i) {
+            it = it.next();
+        }
+
+        cur = target;
+        // 添加迭代器到结果
+        if (it != end()) {
+            result.push_back(it);
+        } else {
+            // 如果迭代器到达尾后，停止添加
+            break;
+        }
+    }
+    return result;
+}
+
 // TODO: 目前暂不考虑分步式rehash
 void hash_table::rehash(const unsigned long newSize) {
     hash_entry** newTable = nullptr;
@@ -158,7 +204,7 @@ void hash_table::rehash(const unsigned long newSize) {
         size = newSize;
         sizemask = newSizemask;
     } catch (const std::bad_alloc& e) {
-        std::cerr << "Memory allocation failed during hash_table rehash: "
+        std::cerr << "[HashTable] Memory allocation failed during rehash: "
                   << e.what() << endl;
         // 确保释放分配失败前的内存
         delete[] newTable;
@@ -166,7 +212,6 @@ void hash_table::rehash(const unsigned long newSize) {
 }
 
 // 调试用输出
-#include <iostream>
 void hash_table::print() const {
     // return;
     cout << "Hash Table:" << endl;

@@ -22,6 +22,7 @@ public:
     int dict_find(string key);
     int dict_len();
     void dict_foreach(uintptr_t callback_h);
+    int dict_randomval(const size_t n = 1);
 };
 
 int hash_dict::dict_add(string key, int val) {
@@ -56,7 +57,15 @@ int hash_dict::dict_find(string key) {
 }
 
 int hash_dict::dict_len() {
-    return map.getsize();
+    return map.getSize();
+}
+
+// 不知道怎么返回int或iter列表
+// TODO: 支持查询n个random元素
+int hash_dict::dict_randomval(const size_t n) {
+    vector<hash_table_iterator> its = map.random(n);
+    // 目前只返回一个int
+    return its[0].val();
 }
 
 void* NewHashDict() {
@@ -87,4 +96,8 @@ int DictLen(void* hd) {
 
 void DictForEach(void* hd, uintptr_t callback_h) {
     return static_cast<hash_dict*>(hd)->dict_foreach(callback_h);
+}
+
+int DictRandom(void* hd, const size_t n) {
+    return static_cast<hash_dict*>(hd)->dict_randomval(n);
 }
