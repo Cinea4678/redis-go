@@ -14,7 +14,7 @@ hash_table_iterator hash_table::find(const string& key) {
         entry = entry->next; // 找到匹配的键，返回对应的条目
     }
 
-    return end(); // 未找到，返回空指针
+    return end(); // 未找到，返回尾迭代器
 }
 
 int hash_table::findval(const string& key, int& val) {
@@ -43,6 +43,9 @@ int hash_table::insert(const string& key, const int& val) {
     // 检查是否已存在key
     hash_table_iterator it = find(key);
     if (it != end()) {
+        // TODO: 可能需要新的返回格式?(扩充状态码类型or自定义Response结构体)
+        cerr << "Hash_table insert failed: The key " << key
+             << " is already in hash table,its value is " << it.val() << endl;
         return hashErr;
     }
 
@@ -50,14 +53,22 @@ int hash_table::insert(const string& key, const int& val) {
     // 因为更新在hash_dict.go内定义了根据find的insertOrUpdate，所以并不需要检查并做更新？
     hash_entry* new_entry = new hash_entry(key, val, table[index]);
 
-    table[index] = new_entry;
-    used++;
+    try {
+        hash_entry* new_entry = new hash_entry(key, val, table[index]);
+        table[index] = new_entry;
+        used++;
 
-    // 负载因子大于阈值，哈希表大小expand为2倍并rehash
-    if (load_factor() > expand_threshold) {
-        rehash(size * 2);
+        // 负载因子大于阈值，哈希表大小expand为2倍并rehash
+        if (load_factor() > expand_threshold) {
+            rehash(size * 2);
+        }
+        return hashOk;
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Memory allocation failed during hash_table insert: "
+                  << e.what() << endl;
+        delete new_entry; // 确保释放分配失败前的内存
+        return hashErr;
     }
-    return hashOk;
 }
 
 int hash_table::remove(const string& key) {
@@ -77,7 +88,7 @@ int hash_table::remove(const string& key) {
             } else {
                 // 要删除的键位于链表中间或尾部
                 prevEntry->next = entry->next; // 跳过当前条目
-                entry->next = nullptr;         // 断开当前条目与链表的连接
+                entry->next = nullptr; // 断开当前条目与链表的连接
             }
             delete entry;
             used--;
@@ -118,32 +129,40 @@ void hash_table::clear() {
 
 // TODO: 目前暂不考虑分步式rehash
 void hash_table::rehash(const unsigned long newSize) {
-    hash_entry** newTable = new hash_entry*[newSize]();
-    unsigned long newSizemask = newSize - 1;
+    hash_entry** newTable = nullptr;
+    try {
+        newTable = new hash_entry*[newSize]();
+        unsigned long newSizemask = newSize - 1;
 
-    // 遍历旧哈希表，重新哈希每个元素到新哈希表
-    for (unsigned long i = 0; i < size; ++i) {
-        hash_entry* entry = table[i];
-        while (entry != nullptr) {
-            hash_entry* nextEntry = entry->next;
-            // 重新计算哈希值的索引
-            unsigned long newIndex = hashFunction(entry->key) & newSizemask;
+        // 遍历旧哈希表，重新哈希每个元素到新哈希表
+        for (unsigned long i = 0; i < size; ++i) {
+            hash_entry* entry = table[i];
+            while (entry != nullptr) {
+                hash_entry* nextEntry = entry->next;
+                // 重新计算哈希值的索引
+                unsigned long newIndex = hashFunction(entry->key) & newSizemask;
 
-            // 将元素插入新哈希表
-            entry->next = newTable[newIndex];
-            newTable[newIndex] = entry;
+                // 将元素插入新哈希表
+                entry->next = newTable[newIndex];
+                newTable[newIndex] = entry;
 
-            entry = nextEntry;
+                entry = nextEntry;
+            }
         }
+
+        // 释放旧哈希表内存
+        delete[] table;
+
+        // 更新哈希表属性为新哈希表
+        table = newTable;
+        size = newSize;
+        sizemask = newSizemask;
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Memory allocation failed during hash_table rehash: "
+                  << e.what() << endl;
+        // 确保释放分配失败前的内存
+        delete[] newTable;
     }
-
-    // 释放旧哈希表内存
-    delete[] table;
-
-    // 更新哈希表属性为新哈希表
-    table = newTable;
-    size = newSize;
-    sizemask = newSizemask;
 }
 
 // 调试用输出

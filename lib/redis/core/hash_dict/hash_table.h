@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <iostream>
 #include <string>
 
 using namespace std;
@@ -21,8 +22,11 @@ const uint64_t default_ht_size = 4;
 const static float expand_threshold = 0.8;
 const static float shrink_threshold = 0.2;
 
-enum { hashOk = 0,
-       hashErr = -1 };
+enum {
+    hashOk = 0,
+    hashErr = -1,
+    hashAllocateErr = -2,
+};
 
 // 哈希表节点
 // 占48字节内存(32+8+8)
@@ -32,15 +36,9 @@ class hash_entry {
 
 public:
     // 实际以迭代器调用
-    inline string getkey() const {
-        return key;
-    };
-    inline int getval() const {
-        return val;
-    };
-    inline hash_entry* getnext() const {
-        return next;
-    };
+    inline string getkey() const { return key; };
+    inline int getval() const { return val; };
+    inline hash_entry* getnext() const { return next; };
 
 private:
     // 键值对，key为string类型，val为int类型的内存索引(?)
@@ -51,12 +49,12 @@ private:
     hash_entry* next;
 
     // 不包含next指针的构造函数
-    hash_entry(const string& key, const int& val) :
-        key(key), val(val), next(nullptr){};
+    hash_entry(const string& key, const int& val)
+        : key(key), val(val), next(nullptr){};
 
     // 包含next指针的构造函数
-    hash_entry(const string& key, const int& val, hash_entry* next) :
-        key(key), val(val), next(next){};
+    hash_entry(const string& key, const int& val, hash_entry* next)
+        : key(key), val(val), next(next){};
 
     ~hash_entry(){};
 };
@@ -74,8 +72,8 @@ public:
     }
 
     // 分配内存
-    hash_table(const unsigned long size = default_ht_size) :
-        size(size), sizemask(size - 1), used(0) {
+    hash_table(const unsigned long size = default_ht_size)
+        : size(size), sizemask(size - 1), used(0) {
         table = size > 0 ? new hash_entry*[size]() : nullptr;
         for (unsigned long i = 0; i < size; ++i)
             table[i] = nullptr;
@@ -121,9 +119,7 @@ public:
     // 尾后迭代器
     hash_table_iterator end() const;
 
-    int getsize() const {
-        return this->size;
-    };
+    int getsize() const { return this->size; };
 
 private:
     // 哈希表数组，存指向哈希表第一排节点的指针
@@ -144,8 +140,8 @@ private:
 class hash_table_iterator {
 public:
     // 初始化构造函数，用于构造begin或end迭代器
-    hash_table_iterator(const hash_table* ht, bool end = false) :
-        ht(ht), bucket(0), entry(nullptr) {
+    hash_table_iterator(const hash_table* ht, bool end = false)
+        : ht(ht), bucket(0), entry(nullptr) {
         if (!end) {
             // 如果不是创建一个尾后迭代器，则初始化到第一个有效元素
             advanceToFirst();
@@ -156,15 +152,12 @@ public:
     }
     // 构造函数，用于对指定hash_entry进行迭代
     hash_table_iterator(const hash_table* ht, unsigned long bucket,
-                        hash_entry* entry) :
-        ht(ht),
-        bucket(bucket), entry(entry) {
-    }
+                        hash_entry* entry)
+        : ht(ht), bucket(bucket), entry(entry) {}
 
     // 复制构造函数
-    hash_table_iterator(const hash_table_iterator& clone) :
-        ht(clone.ht), bucket(clone.bucket), entry(clone.entry) {
-    }
+    hash_table_iterator(const hash_table_iterator& clone)
+        : ht(clone.ht), bucket(clone.bucket), entry(clone.entry) {}
 
     // 前缀自增，移动到下一个元素
     hash_table_iterator& operator++() {
@@ -173,12 +166,8 @@ public:
     }
 
     // 对应entry中的方法
-    inline const string key() {
-        return this->entry->key;
-    };
-    inline const int val() {
-        return this->entry->val;
-    };
+    inline const string key() { return this->entry->key; };
+    inline const int val() { return this->entry->val; };
     inline hash_table_iterator next() {
         hash_table_iterator nxt(*this);
         nxt.advance();
@@ -186,14 +175,10 @@ public:
     };
 
     // 解引用迭代器，返回当前的哈希表节点
-    const hash_entry& operator*() const {
-        return *entry;
-    }
+    const hash_entry& operator*() const { return *entry; }
 
     // 通过指针访问
-    const hash_entry* operator->() const {
-        return entry;
-    }
+    const hash_entry* operator->() const { return entry; }
 
     // 比较两个迭代器是否相等
     bool operator==(const hash_table_iterator& other) const {
@@ -206,28 +191,29 @@ public:
     }
 
     // // 删除当前节点
+    // 直接调用找到的entry的remove即可
     // bool erase() {
-    //   if (!entry)
-    //     return false; // 如果当前节点为空，则不执行删除
+    //     if (!entry)
+    //         return false; // 如果当前节点为空，则不执行删除
 
-    //   hash_entry *toDelete = entry;
-    //   // 预先移动到下一个节点
-    //   advance();
+    //     hash_entry* toDelete = entry;
+    //     // 预先移动到下一个节点
+    //     advance();
 
-    //   // 执行删除操作
-    //   // 由于我们已经在迭代器中，我们可以直接访问 hash_table 的成员
-    //   if (prevEntry) {
-    //     // 如果不是第一个节点
-    //     prevEntry->next = entry->next;
-    //   } else {
-    //     // 如果是第一个节点
-    //     ht->table[bucket] = entry->next;
-    //   }
+    //     // 执行删除操作
+    //     // 如果不使用prevEntry则需要重新遍历过
+    //     if (prevEntry) {
+    //         // 如果不是第一个节点
+    //         prevEntry->next = entry->next;
+    //     } else {
+    //         // 如果是第一个节点
+    //         ht->table[bucket] = entry->next;
+    //     }
 
-    //   delete toDelete; // 删除节点
-    //   ht->used--;      // 更新已使用节点的数量
+    //     delete toDelete; // 删除节点
+    //     ht->used--;      // 更新已使用节点的数量
 
-    //   return true;
+    //     return true;
     // }
 
 private:
