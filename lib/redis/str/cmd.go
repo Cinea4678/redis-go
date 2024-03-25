@@ -21,4 +21,5 @@ var StringsCommandTable = []*core.RedisCommand{
 	{"incrby", IncreaseBy},
 	{"decr", Decrease},
 	{"decrby", DecreaseBy},
+	{"append", Append},
 }
