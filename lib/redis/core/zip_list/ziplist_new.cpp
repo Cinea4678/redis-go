@@ -184,11 +184,9 @@ public:
     ziplist_node *find(int64_t integer);
 
     // 返回指定节点的下一个节点
-    //TODO
     ziplist_node *next(ziplist_node *cur);
 
     // 返回指定节点的上一个节点
-    //TODO
     ziplist_node *prev(ziplist_node *cur);
 
     static int64_t get_integer(ziplist_node *cur);
@@ -729,6 +727,108 @@ int ziplist::len() {
     return this->getZllen();
 }
 
+/**
+ * 如果cur是最后一个或没找到，则返回nullptr
+*/
+ziplist_node* ziplist::next(ziplist_node* cur) {
+    size_t zl_len = this->getZllen();
+    ziplist_node* zlnode = nullptr;
+    // content字段为空，说明存储的是value值
+    if(cur->content.empty()) {
+        int64_t integer = cur->value;
+        for(int i = 1; i <= zl_len; i++) {
+            zlnode = this->index(i);
+            int64_t val = ziplist::get_integer(zlnode);
+            if(val == LLONG_MAX) {
+                continue;
+            }
+            if(val == integer) {
+                if (i == zl_len) {
+                    zlnode = nullptr;
+                    break;
+                }
+                else {
+                    zlnode = this->index(i + 1);
+                    break;
+                }
+            }
+        }
+    }
+    // content字段不为空，说明存储的是字符串
+    else {
+        vector<uint8_t> bytes = cur->content;
+        for(int i = 1; i <= zl_len; i++) {
+            zlnode = this->index(i);
+            vector<uint8_t> cur_content = ziplist::get_byte_array(zlnode);
+            if(cur_content.empty()) {
+                continue;
+            }
+            if(equal(cur_content.begin(), cur_content.end(), bytes.begin(), bytes.end())) {
+                if(i == zl_len) {
+                    zlnode = nullptr;
+                    break;
+                }
+                else {
+                    zlnode = this->index(i+1);
+                    break;
+                }
+            }
+        }
+    }
+    return zlnode;
+}
+
+/**
+ * 如果cur是第一个或没找到，则返回nullptr
+*/
+ziplist_node* ziplist::prev(ziplist_node* cur) {
+    size_t zl_len = this->getZllen();
+    ziplist_node* zlnode = nullptr;
+    // content字段为空，说明存储的是value值
+    if(cur->content.empty()) {
+        int64_t integer = cur->value;
+        for(int i = 1; i <= zl_len; i++) {
+            zlnode = this->index(i);
+            int64_t val = ziplist::get_integer(zlnode);
+            if(val == LLONG_MAX) {
+                continue;
+            }
+            if(val == integer) {
+                if (i == 1) {
+                    zlnode = nullptr;
+                    break;
+                }
+                else {
+                    zlnode = this->index(i - 1);
+                    break;
+                }
+            }
+        }
+    }
+    // content字段不为空，说明存储的是字符串
+    else {
+        vector<uint8_t> bytes = cur->content;
+        for(int i = 1; i <= zl_len; i++) {
+            zlnode = this->index(i);
+            vector<uint8_t> cur_content = ziplist::get_byte_array(zlnode);
+            if(cur_content.empty()) {
+                continue;
+            }
+            if(equal(cur_content.begin(), cur_content.end(), bytes.begin(), bytes.end())) {
+                if(i == 1) {
+                    zlnode = nullptr;
+                    break;
+                }
+                else {
+                    zlnode = this->index(i - 1);
+                    break;
+                }
+            }
+        }
+    }
+    return zlnode;
+}
+
 int main() {
     ziplist* zp = new ziplist();
 
@@ -781,27 +881,64 @@ int main() {
     char testNullStr[] = "1235465";
     zp->push(testPushChar2, sizeof(testPushChar2));
     zp->push(21);
-    zlnode = zp->find(testPushChar2, sizeof(testPushChar2));
+    // zlnode = zp->find(testPushChar2, sizeof(testPushChar2));
     // zlnode = zp->find(testNullStr, sizeof(testNullStr));
-    if (zlnode) {
+    // if (zlnode) {
+    //     cout<< zlnode->content.data() <<endl;
+    // }
+    // else {
+    //     cout<< "no str"<<endl;
+    // }
+
+    // zlnode = zp->find(9);
+    // zlnode = zp->find(64);
+    // if(zlnode) {
+    //     cout<< zlnode->value << endl;
+    // }
+    // else {
+    //     cout<<"no number"<<endl;
+    // }
+
+    // 测试返回指定节点的上一个下一个节点
+    zlnode = zp->find(9);
+    zlnode = zp->next(zlnode);
+    if(zlnode) {
+        //output 88
+        cout<<zlnode->value<<endl;
+    }
+    zlnode = zp->next(zlnode);
+    if(zlnode) {
+        //output testPushChar2
+        cout<<zlnode->content.data()<<endl;
+    }
+    zlnode = zp->find(21);
+    zlnode = zp->next(zlnode);
+    if(zlnode) {
+        cout<< zlnode->value <<endl;
+    }
+    else {
+        //output err
+        cout<< "Err!" <<endl;
+    }
+    zlnode = zp->find(21);
+    zlnode = zp->prev(zlnode);
+    if(zlnode) {
+        // output testPushChar2
+        cout<< zlnode->content.data() <<endl;
+    }
+    zlnode = zp->find(testPushChar1, sizeof(testPushChar1));
+    zlnode = zp->prev(zlnode);
+    if(zlnode) {
         cout<< zlnode->content.data() <<endl;
     }
     else {
-        cout<< "no str"<<endl;
-    }
-
-    zlnode = zp->find(9);
-    // zlnode = zp->find(64);
-    if(zlnode) {
-        cout<< zlnode->value << endl;
-    }
-    else {
-        cout<<"no number"<<endl;
+        //output err
+        cout<< "Err!" <<endl;
     }
 
     //测试blob_len()和len()
-    cout<<zp->blob_len()<<endl;
-    cout<<zp->len()<<endl;
+    // cout<<zp->blob_len()<<endl;
+    // cout<<zp->len()<<endl;
 
     delete zlnode;
     delete zp;
