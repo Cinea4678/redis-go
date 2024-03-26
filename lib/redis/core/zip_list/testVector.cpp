@@ -72,7 +72,7 @@ int main() {
     char buf[] = {6, 7, 8}; // 要插入的新条目
 
     // 插入操作，将buf插入到store的末尾
-    insertEntry(store, store.size(), buf, sizeof(buf)/sizeof(buf[0]));
+    insertEntry(store, 2, buf, sizeof(buf)/sizeof(buf[0]));
 
     // 打印结果
     for (auto byte : store) {

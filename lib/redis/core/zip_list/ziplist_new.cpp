@@ -137,6 +137,17 @@ private:
     void setZllen(uint16_t zllen);
 
     /**
+     * 在store<uint8_t>中位置为pos（从1开始）的地方插入一段新的节点，返回值为插入成功或失败
+     * 插入失败返回Err,原因为指定插入的位置当前超出store.size()
+    */
+    ZipListResult insertEntry(vector<uint8_t>& new_node, size_t position);
+    /**
+     * 传入当前节点的索引（是第几个节点，从1开始）
+     * 获得其前序节点的节点长度并返回
+    */
+    size_t get_prev_len(int pos);
+
+    /**
      * 用于在push操作中获取最后一个节点的length，
      * 填到新加入的节点的previous_entry_length中
     */
@@ -172,7 +183,9 @@ public:
     ZipListResult push(char *bytes, int len);
     ZipListResult push(int64_t integer);
 
-    //TODO
+    /**
+     * 在pos位置插入新的节点，pos是从1开始的，新插入节点的位置为第pos个
+    */
     ZipListResult insert(int pos, char *bytes, int len);
     ZipListResult insert(int pos, int64_t integer);
 
@@ -521,9 +534,17 @@ ZipListResult ziplist::push(int64_t integer)
 }
 
 /**
+ * 获取以索引pos作为起始地址的节点长度
  * 此处pos指的是能直接放在store[pos]的索引，不是从1开始的位置
+ * 错误处理：如果pos < 0, 则直接返回0；如果pos > store.size()，则返回LLONG_MAX
 */
-size_t ziplist:: get_node_len(size_t pos) {
+size_t ziplist::get_node_len(size_t pos) {
+    if (pos < 0) {
+        return 0;
+    }   
+    else if (pos >= this->store.size()) {
+        return LLONG_MAX;
+    }
     size_t res = 0; //返回值
     size_t p = pos;
     //定位encoding，并记录prev_length的长度到res中
@@ -630,10 +651,14 @@ ziplist_node *ziplist::index(int n)
 
 /**
  * 用于给定正向索引index，返回该节点在store中起始节点的位置
+ * 错误处理：若index <= 0，则返回0；若index > 当前长度，则返回LLONG_MAX
 */
 size_t ziplist::locate_pos(int index) {
     if (index <= 0) {
         return 0;
+    }
+    else if(index > this->getZllen()) {
+        return LLONG_MAX;
     }
     uint16_t len = this->getZllen();
     uint32_t pos = this->getZltail();
@@ -669,6 +694,120 @@ ziplist_node* ziplist::find(char* bytes, int len) {
 }
 
 /**
+ * pos为store中的指定位置，会插在这个位置的后面
+*/
+ZipListResult ziplist::insertEntry(vector<uint8_t>& new_node, size_t pos) {
+    if (pos > store.size()) {
+        return Err;
+    }
+    // 扩展store的大小以容纳新节点
+    store.resize(store.size() + new_node.size());
+    // 将从position开始的旧元素向后移动new_node.size()个位置
+    move_backward(store.begin() + pos, store.end() - new_node.size(), store.end());
+    // 复制new_node到store的指定位置
+    copy(new_node.begin(), new_node.end(), store.begin() + pos);
+    return Ok;
+}
+
+/**
+ * 传入当前节点的索引（是第几个节点，从1开始）
+ * 获得其前序节点的节点长度并返回
+*/
+size_t ziplist::get_prev_len(int pos) {
+    size_t zl_len = this->getZllen();
+    if (pos > zl_len) {
+        return LLONG_MAX;
+    }
+    else if(pos <= 0) {
+        return 0;
+    }
+    ziplist_node* zlnode;   //用于遍历
+    return this->get_node_len(this->locate_pos(pos));
+}
+
+/**
+ * 在压缩列表第pos个节点之后插入新的节点
+ * 返回错误的原因：pos > this.getZllen() || pos < 0
+ * 若pos = 0，则插入在开头
+*/
+ZipListResult ziplist::insert(int pos, char* bytes, int len) {
+    vector<uint8_t> new_node;   //构造新的待写入节点
+    if (pos > this->getZllen() || pos < 0) {
+        return Err;
+    }
+    //构造新插入节点的previous_entry_length
+    size_t prev_length = this->get_prev_len(pos);
+    prev_length = (uint32_t) prev_length;
+    uint8_t prev_length_buf[5];
+    int prev_length_len = 0;    //新插入节点的prev_length的长度
+    //前序节点长度位于0-254之间，previous_entry_length长为1字节
+    if(prev_length > 0 && prev_length < 254) {
+        prev_length_len = 1;
+        prev_length_buf[0] = (uint8_t)prev_length;
+    }
+    //前序节点长度大于254，previous_entry_length长为5字节
+    else if(prev_length>=254) {
+        prev_length_len = 5;
+        prev_length_buf[0] = (uint8_t)0xFE;
+        for (size_t i = 0; i < sizeof(uint32_t); ++i) {
+            prev_length_buf[i+1] = reinterpret_cast<uint8_t*>(&prev_length)[i];
+        }
+    }
+    //前序节点长度为0，该节点是ziplist的第一个节点
+    else {
+        prev_length_len = 1;
+        prev_length_buf[0] = (uint8_t)0;
+    }
+    //写入previous_entry_length
+    for(int i = 0; i<prev_length_len; i++) {
+        new_node.push_back(prev_length_buf[i]);
+    }
+
+    uint8_t buf[5];   //encoding数组编码
+    int encoding_len = 0;    //encoding数组长度
+    size_t node_len = 0; // 保存节点长度
+    /*确定字符串的encoding*/
+    if (len <= 0x3f) {
+        buf[0] = ZIP_STR_06B | len;
+        encoding_len = 1;
+    } 
+    else if (len <= 0x3fff) {
+        buf[0] = ZIP_STR_14B | ((len >> 8) & 0x3f);
+        buf[1] = len & 0xff;
+        encoding_len = 2;
+    } 
+    else {
+        len += 4;
+        buf[0] = ZIP_STR_32B;
+        buf[1] = (len >> 24) & 0xff;
+        buf[2] = (len >> 16) & 0xff;
+        buf[3] = (len >> 8) & 0xff;
+        buf[4] = len & 0xff;
+        encoding_len = 5;
+    }
+    /*将字符串的encoding写入*/
+    for(int i = 0; i<encoding_len; i++) {
+        new_node.push_back(buf[i]);
+    }
+    /*将字符串本身写入*/
+    for(int i = 0; i<len; i++) {
+        new_node.push_back(*(bytes+i));
+    }
+    if(pos == 0) {
+        this->insertEntry(new_node, 10);
+    }
+    else {
+        this->insertEntry(new_node, this->locate_pos(pos) + get_node_len(this->locate_pos(pos)));
+    }
+    this->setZllen(this->getZllen() + 1);
+    
+    //TODO 更新后续节点的prev_len和连锁更新
+
+    return Ok;
+}
+
+
+/**
  * 如果没找到，返回nullptr
 */
 ziplist_node* ziplist::find(int64_t integer) {
@@ -693,14 +832,14 @@ void ziplist::output_store() {
         cout << static_cast<unsigned int>(it) << " ";
     }
     cout<<endl;
-    // cout<<endl<<endl;
-    // for(auto& it : this->store) {
-    //     cout << it << " ";
-    // }
+    for(auto& it : this->store) {
+        cout << it << " ";
+    }
+    cout<<endl<<endl;
 }
 
 /**
- * 若该节点存储的是字符数组，则返回0xFFFFFFFFFFFFFFFF
+ * 若该节点存储的是字符数组，则返回LLONG_MAX
 */
 int64_t ziplist::get_integer(ziplist_node *cur) {
     if(cur->content.size()) {
@@ -900,41 +1039,51 @@ int main() {
     // }
 
     // 测试返回指定节点的上一个下一个节点
-    zlnode = zp->find(9);
-    zlnode = zp->next(zlnode);
-    if(zlnode) {
-        //output 88
-        cout<<zlnode->value<<endl;
-    }
-    zlnode = zp->next(zlnode);
-    if(zlnode) {
-        //output testPushChar2
-        cout<<zlnode->content.data()<<endl;
-    }
-    zlnode = zp->find(21);
-    zlnode = zp->next(zlnode);
-    if(zlnode) {
-        cout<< zlnode->value <<endl;
-    }
-    else {
-        //output err
-        cout<< "Err!" <<endl;
-    }
-    zlnode = zp->find(21);
-    zlnode = zp->prev(zlnode);
-    if(zlnode) {
-        // output testPushChar2
-        cout<< zlnode->content.data() <<endl;
-    }
-    zlnode = zp->find(testPushChar1, sizeof(testPushChar1));
-    zlnode = zp->prev(zlnode);
-    if(zlnode) {
-        cout<< zlnode->content.data() <<endl;
-    }
-    else {
-        //output err
-        cout<< "Err!" <<endl;
-    }
+    // zlnode = zp->find(9);
+    // zlnode = zp->next(zlnode);
+    // if(zlnode) {
+    //     //output 88
+    //     cout<<zlnode->value<<endl;
+    // }
+    // zlnode = zp->next(zlnode);
+    // if(zlnode) {
+    //     //output testPushChar2
+    //     cout<<zlnode->content.data()<<endl;
+    // }
+    // zlnode = zp->find(21);
+    // zlnode = zp->next(zlnode);
+    // if(zlnode) {
+    //     cout<< zlnode->value <<endl;
+    // }
+    // else {
+    //     //output err
+    //     cout<< "Err!" <<endl;
+    // }
+    // zlnode = zp->find(21);
+    // zlnode = zp->prev(zlnode);
+    // if(zlnode) {
+    //     // output testPushChar2
+    //     cout<< zlnode->content.data() <<endl;
+    // }
+    // zlnode = zp->find(testPushChar1, sizeof(testPushChar1));
+    // zlnode = zp->prev(zlnode);
+    // if(zlnode) {
+    //     cout<< zlnode->content.data() <<endl;
+    // }
+    // else {
+    //     //output err
+    //     cout<< "Err!" <<endl;
+    // }
+
+    //测试insert
+    // zp->output_store();
+    // char testInsert[] = "after second";
+    // zp->insert(2, testInsert, sizeof(testInsert));
+    // zp->output_store();
+
+    // char testStartInsert[] = "be first";
+    // zp->insert(0, testStartInsert, sizeof(testStartInsert));
+    // zp->output_store();
 
     //测试blob_len()和len()
     // cout<<zp->blob_len()<<endl;
