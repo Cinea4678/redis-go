@@ -77,21 +77,22 @@ int hash_table::remove(const string& key) {
             } else {
                 // 要删除的键位于链表中间或尾部
                 prevEntry->next = entry->next; // 跳过当前条目
-                entry->next = nullptr;         // 断开当前条目与链表的连接
+                entry->next = nullptr; // 断开当前条目与链表的连接
             }
             delete entry;
             used--;
+            // 负载因子小于阈值，并且大小大于2*default，哈希表大小shrink为一半并rehash
+            if (load_factor() > expand_threshold &&
+                size / 2 >= default_ht_size) {
+                rehash(size / 2);
+            }
             return val;
         }
         prevEntry = entry;
         entry = entry->next;
     }
 
-    // 负载因子小于阈值，并且大小大于2*default，哈希表大小shrink为一半并rehash
-    if (load_factor() > expand_threshold && size / 2 >= default_ht_size) {
-        rehash(size / 2);
-        return hashOk;
-    }
+    // 因为保存的是索引，所以返回-1即视为报错
     return hashErr; // 未找到要删除的键
 }
 

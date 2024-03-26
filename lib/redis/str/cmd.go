@@ -11,6 +11,7 @@ var (
 	errNotEnoughArgsExpire = errors.New("not enough args after EX, PX, EXAT or PXAT")
 	errNXAndXXConflict     = errors.New("conflict arg: NX and XX")
 	errExpiresConflict     = errors.New("conflict arg: Only one of EX, PX, EXAT or PXAT can exist at the same time")
+	errInvalidInt          = errors.New("value is not an integer or out of range")
 )
 
 // StringsCommandTable 字符串相关命令
@@ -22,4 +23,6 @@ var StringsCommandTable = []*core.RedisCommand{
 	{"decr", Decrease},
 	{"decrby", DecreaseBy},
 	{"append", Append},
+	{"getrange", GetRange},
+	{"getdel", GetDel},
 }

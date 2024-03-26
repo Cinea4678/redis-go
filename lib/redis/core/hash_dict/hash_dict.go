@@ -101,6 +101,16 @@ func (d *HashDict) DictFind(key string) interface{} {
 	}
 }
 
+// 找到后删除，用于GETDEL指令
+func (d *HashDict) DictFindDel(key string) interface{} {
+	pos := int(C.DictRemove(d.ptr, C.CString(key)))
+	if pos < 0 {
+		return nil
+	} else {
+		return d.objs[pos]
+	}
+}
+
 func (d *HashDict) DictLen() int {
 	return int(C.DictLen(d.ptr))
 }

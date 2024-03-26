@@ -36,14 +36,7 @@ void hash_dict::dict_foreach(uintptr_t callback_h) {
 }
 
 int hash_dict::dict_remove(string key) {
-    hash_table_iterator it = map.find(key);
-    if (it != map.end()) {
-        auto val = it.val();
-        map.remove(key);
-        return val;
-    } else {
-        return -1;
-    }
+    return map.remove(key);
 }
 
 int hash_dict::dict_find(string key) {
