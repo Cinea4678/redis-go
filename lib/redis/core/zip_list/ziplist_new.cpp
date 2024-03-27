@@ -209,6 +209,12 @@ public:
     ZipListResult delete_(ziplist_node *cur);
     ZipListResult delete_range(ziplist_node *start, int len);
 
+    /**
+     * 连锁更新，从ziplist的第pos个（pos从1开始）之后（不包括pos节点）开始连锁更新
+     * 第pos个节点前一个节点的长度为former_node_len
+    */
+    void chain_renew(size_t pos, size_t former_node_len);
+
     int blob_len();
     int len();
 };
@@ -711,7 +717,7 @@ ZipListResult ziplist::insertEntry(vector<uint8_t>& new_node, size_t pos) {
 
 /**
  * 传入当前节点的索引（是第几个节点，从1开始）
- * 获得其前序节点的节点长度并返回
+ * 获得其节点长度并返回
 */
 size_t ziplist::get_prev_len(int pos) {
     size_t zl_len = this->getZllen();
@@ -721,7 +727,6 @@ size_t ziplist::get_prev_len(int pos) {
     else if(pos <= 0) {
         return 0;
     }
-    ziplist_node* zlnode;   //用于遍历
     return this->get_node_len(this->locate_pos(pos));
 }
 
@@ -799,11 +804,75 @@ ZipListResult ziplist::insert(int pos, char* bytes, int len) {
     else {
         this->insertEntry(new_node, this->locate_pos(pos) + get_node_len(this->locate_pos(pos)));
     }
+    //如果该节点被添加在最后，则zltail+prev_len
+    if(pos == this->getZllen()) {
+        this->setZltail(this->getZltail() + prev_length);
+    }
+    //否则，添加的是他本身的长度
+    else {
+        this->setZltail(this->getZltail() + new_node.size());
+    }
     this->setZllen(this->getZllen() + 1);
+
     
     //TODO 更新后续节点的prev_len和连锁更新
+    //插入位置在最后，没必要更新后续节点的prev_len
+    if (pos == this->store.size()) {
+        return Ok;
+    }
+    // //获取新插入的节点
+    // ziplist_node* zlnode = this->index(pos + 1);
+    // //获取新插入的结点之后的内容
+    // zlnode = this->next(zlnode);
+
+    // 从新插入的节点（pos+1）之后开始更新
+    this->chain_renew(pos + 2, new_node.size());
 
     return Ok;
+}
+
+void ziplist::chain_renew(size_t pos, size_t former_node_len) {
+    if (pos > this->store.size()) {
+        return;
+    }
+    //此时，zltail已更新，如果是中间插入的场景，是可以定位到新插入的节点的后一个节点的
+    ziplist_node* zlnode = this->index(pos);
+    //暂存当前待修改节点的长度和起始位置，方便递归调用
+    size_t temp_length = this->get_node_len(this->locate_pos(pos));
+    size_t cur_pos = this->locate_pos(pos);
+    //若前序节点和待插入节点的长度均小于254字节，则直接修改内存中的prev_length字段
+    if (former_node_len < 254 && zlnode->previous_entry_length < 254) {
+        this->store[this->locate_pos(pos)] = (uint8_t)former_node_len;
+        return;
+    }
+    //若前序节点长于254字节，而待修改节点短于254字节，则需要resize store
+    else if (former_node_len >= 254 && zlnode->previous_entry_length < 254) {
+        temp_length += 4;   //节点变长
+        this->store[cur_pos] = (uint8_t)0xFE;
+        vector<uint8_t> prev_length_buf;
+        for (size_t i = 0; i < sizeof(uint32_t); ++i) {
+            prev_length_buf.push_back(reinterpret_cast<uint8_t*>(&former_node_len)[i]);
+        }
+        store.insert(store.begin() + cur_pos + 1, prev_length_buf.begin(), prev_length_buf.end());
+        if(pos != this->store.size()) {
+            this->setZltail(this->getZltail() + 4);
+        }
+        this->chain_renew(pos + 1, temp_length);
+    }
+    else if (former_node_len < 254 && zlnode->previous_entry_length >= 254) {
+        temp_length -= 4;   //节点变短
+        this->store[cur_pos] = (uint8_t)former_node_len;
+        //清除多余的4个字节
+        this->store.erase(store.begin() + cur_pos + 1, store.begin() + cur_pos + 1 + 4);
+        if(pos != this->store.size()) {
+            this->setZltail(this->getZltail() - 4);
+        }
+        this->chain_renew(pos + 1, temp_length);
+    }
+    else {
+        //其实此时应该抛错
+        return;
+    }
 }
 
 
@@ -1076,14 +1145,14 @@ int main() {
     // }
 
     //测试insert
-    // zp->output_store();
-    // char testInsert[] = "after second";
-    // zp->insert(2, testInsert, sizeof(testInsert));
-    // zp->output_store();
+    zp->output_store();
+    char testInsert[] = "after second";
+    zp->insert(2, testInsert, sizeof(testInsert));
+    zp->output_store();
 
-    // char testStartInsert[] = "be first";
-    // zp->insert(0, testStartInsert, sizeof(testStartInsert));
-    // zp->output_store();
+    char testStartInsert[] = "be first";
+    zp->insert(0, testStartInsert, sizeof(testStartInsert));
+    zp->output_store();
 
     //测试blob_len()和len()
     // cout<<zp->blob_len()<<endl;
