@@ -137,7 +137,7 @@ private:
     void setZllen(uint16_t zllen);
 
     /**
-     * 在store<uint8_t>中位置为pos（从1开始）的地方插入一段新的节点，返回值为插入成功或失败
+     * 在store<uint8_t>中位置为pos的地方插入一段新的节点，返回值为插入成功或失败
      * 插入失败返回Err,原因为指定插入的位置当前超出store.size()
     */
     ZipListResult insertEntry(vector<uint8_t>& new_node, size_t position);
@@ -799,6 +799,7 @@ ZipListResult ziplist::insert(int pos, char* bytes, int len) {
         new_node.push_back(*(bytes+i));
     }
     if(pos == 0) {
+        // 10是排除掉ziplist头的位置
         this->insertEntry(new_node, 10);
     }
     else {
@@ -813,23 +814,103 @@ ZipListResult ziplist::insert(int pos, char* bytes, int len) {
         this->setZltail(this->getZltail() + new_node.size());
     }
     this->setZllen(this->getZllen() + 1);
-
-    
-    //TODO 更新后续节点的prev_len和连锁更新
     //插入位置在最后，没必要更新后续节点的prev_len
     if (pos == this->store.size()) {
         return Ok;
     }
-    // //获取新插入的节点
-    // ziplist_node* zlnode = this->index(pos + 1);
-    // //获取新插入的结点之后的内容
-    // zlnode = this->next(zlnode);
 
     // 从新插入的节点（pos+1）之后开始更新
     this->chain_renew(pos + 2, new_node.size());
-
+    this->setZlbytes(this->store.size());
     return Ok;
 }
+
+ZipListResult ziplist::insert(int pos, int64_t integer) {
+    vector<uint8_t> new_node;   //构造新的待写入节点
+     if (pos > this->getZllen() || pos < 0) {
+        return Err;
+    }
+    //构造新插入节点的previous_entry_length
+    size_t prev_length = this->get_prev_len(pos);
+    prev_length = (uint32_t) prev_length;
+    uint8_t prev_length_buf[5];
+    int prev_length_len = 0;    //新插入节点的prev_length的长度
+    //前序节点长度位于0-254之间，previous_entry_length长为1字节
+    if(prev_length > 0 && prev_length < 254) {
+        prev_length_len = 1;
+        prev_length_buf[0] = (uint8_t)prev_length;
+    }
+    //前序节点长度大于254，previous_entry_length长为5字节
+    else if(prev_length>=254) {
+        prev_length_len = 5;
+        prev_length_buf[0] = (uint8_t)0xFE;
+        for (size_t i = 0; i < sizeof(uint32_t); ++i) {
+            prev_length_buf[i+1] = reinterpret_cast<uint8_t*>(&prev_length)[i];
+        }
+    }
+    //前序节点长度为0，该节点是ziplist的第一个节点
+    else {
+        prev_length_len = 1;
+        prev_length_buf[0] = (uint8_t)0;
+    }
+    //写入previous_entry_length
+    for(int i = 0; i<prev_length_len; i++) {
+        new_node.push_back(prev_length_buf[i]);
+    }
+    uint8_t encoding = 0;
+    if (integer >= 0 && integer <= 12) {
+        encoding = ZIP_INT_4b + integer;
+    } else if (integer >= INT8_MIN && integer <= INT8_MAX) {
+        encoding = ZIP_INT_8B;
+    } else if (integer >= INT16_MIN && integer <= INT16_MAX) {
+        encoding = ZIP_INT_16B;
+    } else if (integer >= INT24_MIN && integer <= INT24_MAX) {
+        encoding = ZIP_INT_24B;
+    } else if (integer >= INT32_MIN && integer <= INT32_MAX) {
+        encoding = ZIP_INT_32B;
+    } else {
+        encoding = ZIP_INT_64B;
+    }
+    new_node.push_back(encoding);
+    // 对于非立即数编码，将integer的字节添加到new_node
+    if (!(integer >= 0 && integer <= 12)) {
+        size_t size = 0; // 根据encoding确定需要存储的字节数
+        switch (encoding) {
+            case ZIP_INT_8B: size = 1; break;
+            case ZIP_INT_16B: size = 2; break;
+            case ZIP_INT_24B: size = 3; break;
+            case ZIP_INT_32B: size = 4; break;
+            case ZIP_INT_64B: size = 8; break;
+        }
+        for (size_t i = 0; i < size; ++i) {
+            new_node.push_back(reinterpret_cast<uint8_t*>(&integer)[i]);
+        }
+    }
+    if(pos == 0) {
+        this->insertEntry(new_node, 10);
+    }
+    else {
+        this->insertEntry(new_node, this->locate_pos(pos) + get_node_len(this->locate_pos(pos)));
+    }
+    //如果该节点被添加在最后，则zltail+prev_len
+    if(pos == this->getZllen()) {
+        this->setZltail(this->getZltail() + prev_length);
+    }
+    //否则，添加的是他本身的长度
+    else {
+        this->setZltail(this->getZltail() + new_node.size());
+    }
+    this->setZllen(this->getZllen() + 1);
+    //插入位置在最后，没必要更新后续节点的prev_len
+    if (pos == this->store.size()) {
+        return Ok;
+    }
+
+    // 从新插入的节点（pos+1）之后开始更新
+    this->chain_renew(pos + 2, new_node.size());
+    this->setZlbytes(this->store.size());
+    return Ok;
+}   
 
 void ziplist::chain_renew(size_t pos, size_t former_node_len) {
     if (pos > this->store.size()) {
@@ -1152,6 +1233,11 @@ int main() {
 
     char testStartInsert[] = "be first";
     zp->insert(0, testStartInsert, sizeof(testStartInsert));
+    zp->output_store();
+
+    int testInsertInt = 777;
+    zp->insert(4, testInsertInt);
+    cout<<zp->index(5)->value<<endl;
     zp->output_store();
 
     //测试blob_len()和len()
