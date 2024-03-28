@@ -926,6 +926,13 @@ void ziplist::chain_renew(size_t pos, size_t former_node_len) {
         this->store[this->locate_pos(pos)] = (uint8_t)former_node_len;
         return;
     }
+    //若前序节点和待修改节点均长于254字节
+    else if (former_node_len >= 254 && zlnode->previous_entry_length >= 254) {
+        for (size_t i = 1; i <= sizeof(uint32_t); i++) {
+            this->store[this->locate_pos(pos) + i] = reinterpret_cast<uint8_t*>(&former_node_len)[i];
+        }
+        return;
+    }
     //若前序节点长于254字节，而待修改节点短于254字节，则需要resize store
     else if (former_node_len >= 254 && zlnode->previous_entry_length < 254) {
         temp_length += 4;   //节点变长
