@@ -1003,8 +1003,6 @@ ZipListResult ziplist::delete_(ziplist_node *cur) {
         if(this->delete_by_pos(pos) == Ok) {
             this->setZllen(this->getZllen() - 1);
             this->setZltail(this->getZltail() - node_len);
-            cout<< pos <<endl;
-            cout<< prev_len<<endl;
             this->chain_renew_for_delete(pos, prev_len);
             this->setZlbytes(this->store.size());
             return Ok;
@@ -1435,6 +1433,18 @@ int main() {
         }
     }
 
+    zlnode = zp->find(testStartInsert, sizeof(testStartInsert));
+    if(zlnode == nullptr) {
+        cout<<"Err"<<endl;
+    }
+    else {
+        if (zp->delete_(zlnode) == Ok) {
+            zp->output_store();
+        }
+        else {
+            cout<< "Err!" <<endl;
+        }
+    }
 
 
     //测试blob_len()和len()
