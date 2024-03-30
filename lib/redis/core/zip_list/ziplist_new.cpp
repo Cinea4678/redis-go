@@ -86,11 +86,9 @@ struct ziplist_node
 {
     int previous_entry_length;
     uint8_t encoding;
-    int ba_length; // bit array length ⚠️ 这和书上的定义是不一样的，这里是为了方便写样例
+    int ba_length;  // 压缩列表节点存储的内容的长度
     uint64_t value; // 当压缩列表节点存的是数字时，存在这里面
-    // uint8_t content[];
-    // c++中不建议使用uint8_t，建议使用vector<uint8_t>
-    vector<uint8_t> content; // ⚠️ 在实现时建议换成上面那个uint8_t[]
+    vector<uint8_t> content; // 当压缩列表节点存的是字符串时，存在这里面
 
     ziplist_node(char *bytes, int len);
     ziplist_node(int64_t integer);
@@ -167,6 +165,11 @@ public:
      * 用于给定正向索引index，返回该节点在store中起始节点的位置
     */
     size_t locate_pos(int index);
+   /**
+     * 用于给定节点指针*cur，以引用的形式返回该节点在store中起始节点的位置
+     * 会返回Ok 或 Err
+    */
+    ZipListResult locate_node(ziplist_node *cur, size_t& pos);
 
     /**
      * 底层存储到zlnode结构体
@@ -208,12 +211,23 @@ public:
     //TODO
     ZipListResult delete_(ziplist_node *cur);
     ZipListResult delete_range(ziplist_node *start, int len);
+    /**
+     * 通过传入的参数pos来
+    */
+    ZipListResult delete_by_pos(size_t pos);
 
     /**
      * 连锁更新，从ziplist的第pos个（pos从1开始）之后（不包括pos节点）开始连锁更新
      * 第pos个节点前一个节点的长度为former_node_len
     */
     void chain_renew(size_t pos, size_t former_node_len);
+
+
+    /**
+     * 连锁更新，为删除操作特化
+     * 传入的pos是待删除节点在store中的起始的位置
+    */
+    void chain_renew_for_delete(size_t pos, size_t former_node_len);
 
     int blob_len();
     int len();
@@ -327,7 +341,7 @@ ZipListResult ziplist::mem2zlnode(size_t pos, ziplist_node* & zp) {
         }
         else if(encoding == ZIP_INT_32B) {
             //32位整数
-             zp->value = static_cast<uint32_t>(store[p]) |
+            zp->value = static_cast<uint32_t>(store[p]) |
            static_cast<uint32_t>(store[p + 1]) << 8 |
            static_cast<uint32_t>(store[p + 2]) << 16 |
            static_cast<uint32_t>(store[p + 3]) << 24;
@@ -910,10 +924,121 @@ ZipListResult ziplist::insert(int pos, int64_t integer) {
     this->chain_renew(pos + 2, new_node.size());
     this->setZlbytes(this->store.size());
     return Ok;
-}   
+} 
+
+ZipListResult ziplist::locate_node(ziplist_node *cur, size_t& pos) {
+    vector<uint8_t> cur_content = ziplist::get_byte_array(cur);
+    int64_t integer = 0;
+    bool str_or_int = false;    //false:存的字符串, int:存的整数值
+    if(cur_content.empty()) {
+        str_or_int = true;
+        integer = ziplist::get_integer(cur);
+    }
+    if(integer == LLONG_MAX) {
+        return Err;
+    }
+    // 存的整数值
+    if(str_or_int) {
+        size_t zl_len = this->getZllen();
+        uint32_t cur_pos = this->getZltail();
+        int i = 0;
+        ziplist_node* zl_node = nullptr;
+        for(i = 0; i < zl_len; i++) {
+            if(this->mem2zlnode(cur_pos, zl_node) == Ok) {
+                if (zl_node->content.size() == 0) {
+                    if (ziplist::get_integer(zl_node) == integer) {
+                        pos = cur_pos;
+                        return Ok;
+                    }
+                }
+            }
+            else {
+                return Err;
+            }
+            size_t prev_length = this->get_prev_length(cur_pos);
+            cur_pos -= prev_length;
+        }
+        if(i==zl_len) {
+            return Err;
+        }
+    }
+    else {
+        size_t zl_len = this->getZllen();
+        uint32_t cur_pos = this->getZltail();
+        int i = 0;
+        ziplist_node* zl_node = nullptr;
+        for(i = 0; i < zl_len; i++) {
+            if(this->mem2zlnode(cur_pos, zl_node) == Ok) {
+                if (zl_node->content.size() != 0) {
+                    if (ziplist::get_byte_array(zl_node) == cur_content) {
+                        pos = cur_pos;
+                        return Ok;
+                    }
+                }
+            }
+            else {
+                return Err;
+            }
+            size_t prev_length = this->get_prev_length(cur_pos);
+            cur_pos -= prev_length;
+        }
+        if(i==zl_len) {
+            return Err;
+        }
+    }
+    return Ok;
+}
+
+/**
+ * 指定一个节点cur，删除该节点
+ * 正确删除返回Ok，
+ * 错误情况返回Err：传入节点结构体cur值出错(content没有或value没有)
+ *          节点的值未找到 
+*/
+ZipListResult ziplist::delete_(ziplist_node *cur) {
+    size_t pos; //此处的pos是store的索引，从0开始
+    if (this->locate_node(cur, pos) == Ok) {
+        size_t node_len = this->get_node_len(pos);
+        size_t prev_len = this->get_prev_length(pos);
+        if(this->delete_by_pos(pos) == Ok) {
+            this->setZllen(this->getZllen() - 1);
+            this->setZltail(this->getZltail() - node_len);
+            cout<< pos <<endl;
+            cout<< prev_len<<endl;
+            this->chain_renew_for_delete(pos, prev_len);
+            this->setZlbytes(this->store.size());
+            return Ok;
+        }
+        else{
+            return Err;
+        }
+    }
+    else {
+        return Err;
+    }
+    return Ok;
+}
+
+/**
+ * 当传入的pos >= store.size() || pos < 0时，返回Err
+*/
+ZipListResult ziplist::delete_by_pos(size_t pos) {
+    if (pos >= store.size() || pos < 0){
+        return Err;
+    }
+    auto node_len = this->get_node_len(pos);
+    this->store.erase(store.begin() + pos, store.begin() + pos + node_len);
+    return Ok;
+}
+
+ZipListResult ziplist::delete_range(ziplist_node *start, int len) {
+
+
+    return Ok;
+}
 
 void ziplist::chain_renew(size_t pos, size_t former_node_len) {
-    if (pos > this->store.size()) {
+    if (pos > this->getZllen()) {
         return;
     }
     //此时，zltail已更新，如果是中间插入的场景，是可以定位到新插入的节点的后一个节点的
@@ -963,6 +1088,55 @@ void ziplist::chain_renew(size_t pos, size_t former_node_len) {
     }
 }
 
+void ziplist::chain_renew_for_delete(size_t pos, size_t former_node_len) {
+    if (pos >= this->store.size()) {
+        return;
+    }
+    ziplist_node* zlnode;
+    this->mem2zlnode(pos, zlnode);
+    //暂存当前待修改节点的长度和起始位置，方便递归调用
+    size_t temp_length = this->get_node_len(pos);
+    //若前序节点和待插入节点的长度均小于254字节，则直接修改内存中的prev_length字段
+    if (former_node_len < 254 && zlnode->previous_entry_length < 254) {
+        this->store[pos] = (uint8_t)former_node_len;
+        return;
+    }
+    //若前序节点和待修改节点均长于254字节
+    else if (former_node_len >= 254 && zlnode->previous_entry_length >= 254) {
+        for (size_t i = 1; i <= sizeof(uint32_t); i++) {
+            this->store[pos + i] = reinterpret_cast<uint8_t*>(&former_node_len)[i];
+        }
+        return;
+    }
+    //若前序节点长于254字节，而待修改节点短于254字节，则需要resize store
+    else if (former_node_len >= 254 && zlnode->previous_entry_length < 254) {
+        temp_length += 4;   //节点变长
+        this->store[pos] = (uint8_t)0xFE;
+        vector<uint8_t> prev_length_buf;
+        for (size_t i = 0; i < sizeof(uint32_t); ++i) {
+            prev_length_buf.push_back(reinterpret_cast<uint8_t*>(&former_node_len)[i]);
+        }
+        store.insert(store.begin() + pos + 1, prev_length_buf.begin(), prev_length_buf.end());
+        if(pos != this->store.size()) {
+            this->setZltail(this->getZltail() + 4);
+        }
+        this->chain_renew_for_delete(pos + temp_length, temp_length);
+    }
+    else if (former_node_len < 254 && zlnode->previous_entry_length >= 254) {
+        temp_length -= 4;   //节点变短
+        this->store[pos] = (uint8_t)former_node_len;
+        //清除多余的4个字节
+        this->store.erase(store.begin() + pos + 1, store.begin() + pos + 1 + 4);
+        if(pos != this->store.size()) {
+            this->setZltail(this->getZltail() - 4);
+        }
+        this->chain_renew_for_delete(pos + temp_length, temp_length);
+    }
+    else {
+        //其实此时应该抛错
+        return;
+    }
+}
 
 /**
  * 如果没找到，返回nullptr
@@ -1246,6 +1420,22 @@ int main() {
     zp->insert(4, testInsertInt);
     cout<<zp->index(5)->value<<endl;
     zp->output_store();
+
+    //测试delete
+    zlnode = zp->find(777);
+    if(zlnode == nullptr) {
+        cout<<"Err"<<endl;
+    }
+    else {
+        if (zp->delete_(zlnode) == Ok) {
+            zp->output_store();
+        }
+        else {
+            cout<< "Err!" <<endl;
+        }
+    }
+
+
 
     //测试blob_len()和len()
     // cout<<zp->blob_len()<<endl;
