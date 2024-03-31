@@ -1000,9 +1000,24 @@ ZipListResult ziplist::delete_(ziplist_node *cur) {
     if (this->locate_node(cur, pos) == Ok) {
         size_t node_len = this->get_node_len(pos);
         size_t prev_len = this->get_prev_length(pos);
+        bool flag = false;
+        if (pos == this->getZltail()) { //说明删除的是最后一个节点
+            flag = true;
+        }
         if(this->delete_by_pos(pos) == Ok) {
             this->setZllen(this->getZllen() - 1);
-            this->setZltail(this->getZltail() - node_len);
+            if(flag) {
+                //若前序节点长度也为0，说明删去后ziplist长度为0
+                if (prev_len == 0) {
+                    this->setZltail(0x0A);
+                }
+                else {
+                    this->setZltail(this->getZltail() - prev_len);
+                }
+            }
+            else {
+                this->setZltail(this->getZltail() - node_len);
+            }
             this->chain_renew_for_delete(pos, prev_len);
             this->setZlbytes(this->store.size());
             return Ok;
@@ -1029,9 +1044,48 @@ ZipListResult ziplist::delete_by_pos(size_t pos) {
     return Ok;
 }
 
+/**
+ * 从start节点开始，删除包括start节点在内的len个节点，
+ * 当要删除的部分超出最后一个节点时，返回Err
+*/
 ZipListResult ziplist::delete_range(ziplist_node *start, int len) {
-
-
+    size_t pos; //此处的pos是store的索引，从0开始
+    if (this->locate_node(start, pos) == Ok) {
+        size_t del_len = 0;
+        size_t cur_pos = pos;
+        size_t prev_len = this->get_prev_length(pos);
+        bool flag = false;  //判断最后一个节点是否被删除，若被删除则需要对zltail特殊处理
+        //先确定要删除的长度
+        for(int i = 0; i < len; i++) {
+            size_t node_len = this->get_node_len(cur_pos);
+            del_len += node_len;
+            cur_pos += node_len;
+            if (cur_pos >= store.size() || cur_pos < 0){
+                return Err;
+            }
+        }
+        if(cur_pos == this->store.size() - 1) {
+            flag = true;
+        }
+        this->store.erase(store.begin() + pos, store.begin() + pos + del_len);
+        this->setZllen(this->getZllen() - len);
+        if(flag) {
+            if (prev_len == 0) {
+                this->setZltail(0x0A);
+            }
+            else {
+                this->setZltail(this->getZltail() - del_len - prev_len);
+            }
+        }
+        else {
+            this->setZltail(this->getZltail() - del_len);
+        }
+        this->chain_renew_for_delete(pos, prev_len);
+        this->setZlbytes(this->store.size());
+    }
+    else {
+        return Err;
+    }
     return Ok;
 }
 
@@ -1419,33 +1473,46 @@ int main() {
     cout<<zp->index(5)->value<<endl;
     zp->output_store();
 
-    //测试delete
-    zlnode = zp->find(777);
+    //测试delete_
+    // zlnode = zp->find(777);
+    // if(zlnode == nullptr) {
+    //     cout<<"Err"<<endl;
+    // }
+    // else {
+    //     if (zp->delete_(zlnode) == Ok) {
+    //         zp->output_store();
+    //     }
+    //     else {
+    //         cout<< "Err!" <<endl;
+    //     }
+    // }
+
+    // zlnode = zp->find(testStartInsert, sizeof(testStartInsert));
+    // if(zlnode == nullptr) {
+    //     cout<<"Err"<<endl;
+    // }
+    // else {
+    //     if (zp->delete_(zlnode) == Ok) {
+    //         zp->output_store();
+    //     }
+    //     else {
+    //         cout<< "Err!" <<endl;
+    //     }
+    // }
+
+    //测试delete_range
+    zlnode = zp->find(testInsert, sizeof(testInsert));
     if(zlnode == nullptr) {
         cout<<"Err"<<endl;
     }
     else {
-        if (zp->delete_(zlnode) == Ok) {
+        if (zp->delete_range(zlnode, 3) == Ok) {
             zp->output_store();
         }
         else {
             cout<< "Err!" <<endl;
         }
     }
-
-    zlnode = zp->find(testStartInsert, sizeof(testStartInsert));
-    if(zlnode == nullptr) {
-        cout<<"Err"<<endl;
-    }
-    else {
-        if (zp->delete_(zlnode) == Ok) {
-            zp->output_store();
-        }
-        else {
-            cout<< "Err!" <<endl;
-        }
-    }
-
 
     //测试blob_len()和len()
     // cout<<zp->blob_len()<<endl;
