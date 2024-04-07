@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/cinea4678/resp3"
+	"go.uber.org/multierr"
 )
 
 /**
@@ -319,6 +320,73 @@ func Append(client *core.RedisClient) (err error) {
 	// 返回追加后的字符串长度
 	io.AddReplyNumber(client, int64(len(newValue)))
 	return
+}
+
+func LCS(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 2 {
+		return errNotEnoughArgs
+	}
+
+	key1 := req[0].Str
+	key2 := req[1].Str
+
+	db := client.Db
+
+	obj1 := db.LookupKey(key1)
+	obj2 := db.LookupKey(key2)
+
+	if obj1 == nil || obj2 == nil {
+		io.SendReplyToClient(client, shared.Shared.Nil)
+		return
+	}
+
+	str1, err1 := obj1.GetString()
+	str2, err2 := obj2.GetString()
+
+	if err1 != nil && err2 != nil {
+		err = multierr.Append(err1, err2)
+		return
+	}
+
+	lcs := FindLCS(str1, str2)
+	io.AddReplyString(client, lcs)
+	return
+}
+
+func FindLCS(str1, str2 string) string {
+	n, m := len(str1), len(str2)
+
+	// 最长公共子字符串在f1中的结束位置
+	end := 0
+	// 最长公共子字符串的长度
+	maxLen := 0
+
+	// 二维数组，dp[i][j]是s1中以i结尾和s2中以j结尾的最长公共子字符串的长度
+	dp := make([][]int, n+1)
+	for i := range dp {
+		dp[i] = make([]int, m+1)
+	}
+
+	for i := 1; i <= n; i++ {
+		for j := 1; j <= m; j++ {
+			if str1[i-1] == str2[j-1] {
+				dp[i][j] = dp[i-1][j-1] + 1
+				if dp[i][j] > maxLen {
+					maxLen = dp[i][j]
+					end = i - 1 // 更新最长公共子字符串的结束位置
+				}
+			}
+		}
+	}
+
+	// 根据maxLen和end提取最长公共子字符串
+	if maxLen > 0 {
+		return str1[end-maxLen+1 : end+1]
+	}
+
+	return "" // 如果最长公共子字符串长度为0，则返回空字符串
 }
 
 //func setGenericCommand(client *RedisClient, flags int, key *Object, val *Object, expire *Object, unit int, ok_reply *Object, abort_reply *Object) {

@@ -25,4 +25,5 @@ var StringsCommandTable = []*core.RedisCommand{
 	{"append", Append},
 	{"getrange", GetRange},
 	{"getdel", GetDel},
+	{"lcs", LCS},
 }
