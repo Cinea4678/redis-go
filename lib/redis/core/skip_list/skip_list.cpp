@@ -52,7 +52,7 @@ private:
         : score(scr), value(val), forward(level + 1, nullptr),
           backward(nullptr) {} // 注意forward的size是level+1（痛苦的debug）
 
-    // ~SkipListNode() {}
+    ~SkipListNode() {}
 };
 
 // 跳表
@@ -71,17 +71,18 @@ public:
     // 循环释放
     ~SkipList() {
         SkipListNode* cur = header;
-        while (!cur) {
+        while (cur) {
             SkipListNode* next = cur->forward[1];
 
             // 类似的，删除相同score的所有元素
-            SkipListNode* cur2 = cur;
-            while (!cur2) {
+            SkipListNode* cur2 = cur->forward[0];
+            while (cur2) {
                 SkipListNode* next2 = cur2->forward[0];
+                cout << "del " << cur2->value << endl;
                 delete cur2;
                 cur2 = next2;
             }
-
+            cout << "del " << cur->value << endl;
             delete cur;
             cur = next;
         }
@@ -92,11 +93,12 @@ public:
     uint32_t Level() const { return this->level; }
     uint32_t Len() const { return this->length; }
 
-    // 插入
+    // 插入randomLevel计算的随机层数
     void insert(double score, uint32_t value);
 
-    // 按值寻找(目前值是可以重复的)
-    SkipListNode* find(uint32_t value);
+    // 这里不做按值查找，而是在zset的哈希表中存其score，将value查找置换为score
+    // 按值寻找(是否重复在哈希表中判定，此处不做约束)
+    // SkipListNode* find(uint32_t value);
 
     // 按score寻找(由于score可以重复，所以可能找到多个)
     vector<SkipListNode*> search(double score);
@@ -169,12 +171,14 @@ void SkipList::insert(double score, uint32_t value) {
 
     // 从最高层开始，查找插入位置
     // 渐进式的查找，下一层查找起点在上一层终点
-    // for (uint32_t i = level; i > 0; i--) { // 依旧是痛苦的debug
-    for (uint32_t i = newNodeLevel; i > 0; i--) {
+    // 注意遍历查找要从level开始才能效率较大，但在小于等于newNodeLevel部分才会更新
+    for (uint32_t i = level; i > 0; i--) {
         while (cur->forward[i] && cur->forward[i]->score < score) {
             cur = cur->forward[i];
         }
-        update[i] = cur;
+        if (i <= newNodeLevel) {
+            update[i] = cur;
+        }
     }
 
     // 经过上面的循环后，cur抵达小于score的最后一个节点(其第一层后继节点大于等于score)
