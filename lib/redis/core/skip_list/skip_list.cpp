@@ -380,66 +380,66 @@ void SkipList::printLevel(uint32_t lvl) const {
     cout << "null" << endl;
 }
 
-int main() {
-    srand(514); // 初始化随机种子
+// int main() {
+//     srand(514); // 初始化随机种子
 
-    SkipList list;
-    cout << "Finish new list" << endl;
-    // 记录开始时间
-    auto start = chrono::high_resolution_clock::now();
+//     SkipList list;
+//     cout << "Finish new list" << endl;
+//     // 记录开始时间
+//     auto start = chrono::high_resolution_clock::now();
 
-    // 插入元素
-    for (int i = 0; i < 100; i++) {
-        list.insert(rand() % 500 * 0.1, i + 1);
-        // list.print();
-    }
-    list.print();
+//     // 插入元素
+//     for (int i = 0; i < 100; i++) {
+//         list.insert(rand() % 500 * 0.1, i + 1);
+//         // list.print();
+//     }
+//     list.print();
 
-    // for (int i = 0; i < 100; i++) {
-    //     auto r = list.remove(rand() % 500 * 0.1);
-    //     if (r.size() != 0) {
-    //         for (int j = 0; j < r.size(); j++) {
-    //             cout << "remove node: " << endl;
-    //             r[j]->print();
-    //         }
-    //     }
-    //     // list.print();
-    // }
+//     // for (int i = 0; i < 100; i++) {
+//     //     auto r = list.remove(rand() % 500 * 0.1);
+//     //     if (r.size() != 0) {
+//     //         for (int j = 0; j < r.size(); j++) {
+//     //             cout << "remove node: " << endl;
+//     //             r[j]->print();
+//     //         }
+//     //     }
+//     //     // list.print();
+//     // }
 
-    // 搜索元素
-    auto result = list.search(8);
-    cout << "Search results for score 8.0: " << result.size()
-         << " entries found." << endl;
+//     // 搜索元素
+//     auto result = list.search(8);
+//     cout << "Search results for score 8.0: " << result.size()
+//          << " entries found." << endl;
 
-    for (int i = 0; i < 100; i++) {
-        auto r = list.search(rand() % 500 * 0.1);
-        if (r.size() != 0) {
-            for (int j = 0; j < r.size(); j++) {
-                cout << "search node: " << endl;
-                r[j]->print();
-            }
-        }
-        // list.print();
-    }
+//     for (int i = 0; i < 100; i++) {
+//         auto r = list.search(rand() % 500 * 0.1);
+//         if (r.size() != 0) {
+//             for (int j = 0; j < r.size(); j++) {
+//                 cout << "search node: " << endl;
+//                 r[j]->print();
+//             }
+//         }
+//         // list.print();
+//     }
 
-    // TODO：补充测试删除
-    //  删除元素
-    auto removed = list.remove(8);
-    auto r = list.remove(rand() % 500 * 0.1);
-    if (r.size() != 0) {
-        for (int j = 0; j < r.size(); j++) {
-            cout << "remove node: " << endl;
-            r[j]->print();
-        }
-    }
+//     // TODO：补充测试删除
+//     //  删除元素
+//     auto removed = list.remove(8);
+//     auto r = list.remove(rand() % 500 * 0.1);
+//     if (r.size() != 0) {
+//         for (int j = 0; j < r.size(); j++) {
+//             cout << "remove node: " << endl;
+//             r[j]->print();
+//         }
+//     }
 
-    // 打印跳表
-    // list.print();
+//     // 打印跳表
+//     // list.print();
 
-    // 记录结束时间并计算运行时间
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double, std::milli> elapsed = end - start;
-    cout << "Elapsed time: " << elapsed.count() << " ms" << endl;
+//     // 记录结束时间并计算运行时间
+//     auto end = chrono::high_resolution_clock::now();
+//     chrono::duration<double, std::milli> elapsed = end - start;
+//     cout << "Elapsed time: " << elapsed.count() << " ms" << endl;
 
-    return 0;
-}
+//     return 0;
+// }
