@@ -3,3 +3,4 @@
 **/.vscode
 .clang-format
 .gitignore
+lib/redis/core/skip_list/skip_list.exe
