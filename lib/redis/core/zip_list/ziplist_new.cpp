@@ -155,8 +155,6 @@ private:
      * 获取在vector中起始位置为pos的节点的previous_entry_length
     */
     size_t get_prev_length(size_t pos);
-
-public:
     /**
      * 获取以索引pos作为起始地址的长度
     */
@@ -175,11 +173,19 @@ public:
      * 底层存储到zlnode结构体
     */
     ZipListResult mem2zlnode(size_t pos, ziplist_node* & zp); 
+
+    /**
+     * 连锁更新，为删除操作特化
+     * 传入的pos是待删除节点在store中的起始的位置
+    */
+    void chain_renew_for_delete(size_t pos, size_t former_node_len);
+
+public:
+
     /**
      * zlnode结构体到底层存储
     */
     // ZipListResult zlnode2mem(ziplist_node zn);
-
     void output_store();
     ziplist();
     // 将元素插入到表尾
@@ -221,13 +227,6 @@ public:
      * 第pos个节点前一个节点的长度为former_node_len
     */
     void chain_renew(size_t pos, size_t former_node_len);
-
-
-    /**
-     * 连锁更新，为删除操作特化
-     * 传入的pos是待删除节点在store中的起始的位置
-    */
-    void chain_renew_for_delete(size_t pos, size_t former_node_len);
 
     int blob_len();
     int len();
