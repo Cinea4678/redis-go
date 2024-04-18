@@ -55,7 +55,8 @@ func AddReplyString(client *core.RedisClient, str string) {
 func AddReplyObject(client *core.RedisClient, obj *core.Object) {
 	switch obj.Type {
 	case core.RedisString:
-		AddReplyString(client, *obj.Ptr.(*string))
+		str, _ := obj.GetString()
+		AddReplyString(client, str)
 	}
 }
 
