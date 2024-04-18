@@ -5,9 +5,12 @@
 #include <cassert>
 #include <iostream>
 #include <cstddef>
-#include "ziplist.h"
 
 using namespace std;
+
+extern "C" {
+#include "ziplist.h"
+}
 
 #define Ok 0
 #define Err 1
@@ -1380,185 +1383,185 @@ ziplist_node* ziplist::prev(ziplist_node* cur) {
     return zlnode;
 }
 
-int main() {
-    ziplist* zp = new ziplist();
-    
-    //测试push操作
-    char testPushChar1[] = "hello"; 
-    zp->push(testPushChar1, sizeof(testPushChar1));
-    int s = 9, bi = 88;
-    zp->push(s);
-    zp->push(bi);
-    // zp->output_store();
-    // 测试字符串节点长度获取
-    // cout<<zp->get_node_len(10)<<endl;
-    // 测试整数节点长度获取
-    // cout<<zp->get_node_len(20)<<endl;
-    // 测试给定一个正向索引，返回其在vector中的位置
-    // cout<<zp->locate_pos(1)<<endl;
-    // cout<<zp->locate_pos(2)<<endl;
-    // cout<<zp->locate_pos(3)<<endl;
-    // 测试mem2zlnode
-    ziplist_node* zlnode = new ziplist_node();
-
-    //测试查找具有指定值的节点
-    char testPushChar2[] = "testPushChar2"; 
-    char testNullStr[] = "1235465";
-    zp->push(testPushChar2, sizeof(testPushChar2));
-    zp->push(21);
-    // zlnode = zp->find(testPushChar2, sizeof(testPushChar2));
-    // zlnode = zp->find(testNullStr, sizeof(testNullStr));
-    // if (zlnode) {
-    //     cout<< zlnode->content.data() <<endl;
-    // }
-    // else {
-    //     cout<< "no str"<<endl;
-    // }
-
-    // zlnode = zp->find(9);
-    // zlnode = zp->find(64);
-    // if(zlnode) {
-    //     cout<< zlnode->value << endl;
-    // }
-    // else {
-    //     cout<<"no number"<<endl;
-    // }
-
-    // 测试返回指定节点的上一个下一个节点
-    // zlnode = zp->find(9);
-    // zlnode = zp->next(zlnode);
-    // if(zlnode) {
-    //     //output 88
-    //     cout<<zlnode->value<<endl;
-    // }
-    // zlnode = zp->next(zlnode);
-    // if(zlnode) {
-    //     //output testPushChar2
-    //     cout<<zlnode->content.data()<<endl;
-    // }
-    // zlnode = zp->find(21);
-    // zlnode = zp->next(zlnode);
-    // if(zlnode) {
-    //     cout<< zlnode->value <<endl;
-    // }
-    // else {
-    //     //output err
-    //     cout<< "Err!" <<endl;
-    // }
-    // zlnode = zp->find(21);
-    // zlnode = zp->prev(zlnode);
-    // if(zlnode) {
-    //     // output testPushChar2
-    //     cout<< zlnode->content.data() <<endl;
-    // }
-    // zlnode = zp->find(testPushChar1, sizeof(testPushChar1));
-    // zlnode = zp->prev(zlnode);
-    // if(zlnode) {
-    //     cout<< zlnode->content.data() <<endl;
-    // }
-    // else {
-    //     //output err
-    //     cout<< "Err!" <<endl;
-    // }
-
-    //测试insert
-    // zp->output_store();
-    char testInsert[] = "after second";
-    zp->insert(2, testInsert, sizeof(testInsert));
-    // zp->output_store();
-
-    char testStartInsert[] = "be first";
-    zp->insert(0, testStartInsert, sizeof(testStartInsert));
-    // zp->output_store();
-
-    int testInsertInt = 777;
-    zp->insert(4, testInsertInt);
-    // cout<<zp->index(5)->value<<endl;
-    // zp->output_store();
-    // zp->output_node_content();
-
-    //测试delete_
-    // zlnode = zp->find(777);
-    // if(zlnode == nullptr) {
-    //     cout<<"Err"<<endl;
-    // }
-    // else {
-    //     if (zp->delete_(zlnode) == Ok) {
-    //         zp->output_store();
-    //     }
-    //     else {
-    //         cout<< "Err!" <<endl;
-    //     }
-    // }
-
-    // zlnode = zp->find(testStartInsert, sizeof(testStartInsert));
-    // if(zlnode == nullptr) {
-    //     cout<<"Err"<<endl;
-    // }
-    // else {
-    //     if (zp->delete_(zlnode) == Ok) {
-    //         zp->output_store();
-    //     }
-    //     else {
-    //         cout<< "Err!" <<endl;
-    //     }
-    // }
-
-    //测试delete_range
-    zlnode = zp->find(testInsert, sizeof(testInsert));
-    if(zlnode == nullptr) {
-        cout<<"Err"<<endl;
-    }
-    else {
-        if (zp->delete_range(zlnode, 3) == Ok) {
-            zp->output_node_content();
-            // zp->output_store();
-        }
-        else {
-            cout<< "Err!" <<endl;
-        }
-    }
-
-    //测试较长字符串的插入
-    // char testLongStr[] = "longlonglonglonglonglonglonglong\
-    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
-    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
-    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
-    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
-    // longlonglonglonglonglonglonglonglonglonglonglonglonglong";
-    // zp->insert(3, testLongStr, sizeof(testLongStr));
-    // zp->output_node_content();
-
-    zp->insert(3, 333);
-    // zp->output_node_content();
-
-    //较短字符串的插入
-    char testShortStr[] = "shortshort";
-    zp->insert(4, testShortStr, sizeof(testShortStr));
-    zp->output_node_content();
-
-    // zlnode = zp->find(testShortStr, sizeof(testShortStr));
-    // if(zlnode == nullptr) {
-    //     cout<<"Err"<<endl;
-    // }
-    // else {
-    //     if (zp->delete_(zlnode) == Ok) {
-    //         zp->output_node_content();
-    //     }
-    //     else {
-    //         cout<< "Err!" <<endl;
-    //     }
-    // }
-    
-
-    //测试blob_len()和len()
-    // cout<<zp->blob_len()<<endl;
-    // cout<<zp->len()<<endl;
-
-    delete zlnode;
-    delete zp;
-    return 0;
-}
+//int main() {
+//    ziplist* zp = new ziplist();
+//
+//    //测试push操作
+//    char testPushChar1[] = "hello";
+//    zp->push(testPushChar1, sizeof(testPushChar1));
+//    int s = 9, bi = 88;
+//    zp->push(s);
+//    zp->push(bi);
+//    // zp->output_store();
+//    // 测试字符串节点长度获取
+//    // cout<<zp->get_node_len(10)<<endl;
+//    // 测试整数节点长度获取
+//    // cout<<zp->get_node_len(20)<<endl;
+//    // 测试给定一个正向索引，返回其在vector中的位置
+//    // cout<<zp->locate_pos(1)<<endl;
+//    // cout<<zp->locate_pos(2)<<endl;
+//    // cout<<zp->locate_pos(3)<<endl;
+//    // 测试mem2zlnode
+//    ziplist_node* zlnode = new ziplist_node();
+//
+//    //测试查找具有指定值的节点
+//    char testPushChar2[] = "testPushChar2";
+//    char testNullStr[] = "1235465";
+//    zp->push(testPushChar2, sizeof(testPushChar2));
+//    zp->push(21);
+//    // zlnode = zp->find(testPushChar2, sizeof(testPushChar2));
+//    // zlnode = zp->find(testNullStr, sizeof(testNullStr));
+//    // if (zlnode) {
+//    //     cout<< zlnode->content.data() <<endl;
+//    // }
+//    // else {
+//    //     cout<< "no str"<<endl;
+//    // }
+//
+//    // zlnode = zp->find(9);
+//    // zlnode = zp->find(64);
+//    // if(zlnode) {
+//    //     cout<< zlnode->value << endl;
+//    // }
+//    // else {
+//    //     cout<<"no number"<<endl;
+//    // }
+//
+//    // 测试返回指定节点的上一个下一个节点
+//    // zlnode = zp->find(9);
+//    // zlnode = zp->next(zlnode);
+//    // if(zlnode) {
+//    //     //output 88
+//    //     cout<<zlnode->value<<endl;
+//    // }
+//    // zlnode = zp->next(zlnode);
+//    // if(zlnode) {
+//    //     //output testPushChar2
+//    //     cout<<zlnode->content.data()<<endl;
+//    // }
+//    // zlnode = zp->find(21);
+//    // zlnode = zp->next(zlnode);
+//    // if(zlnode) {
+//    //     cout<< zlnode->value <<endl;
+//    // }
+//    // else {
+//    //     //output err
+//    //     cout<< "Err!" <<endl;
+//    // }
+//    // zlnode = zp->find(21);
+//    // zlnode = zp->prev(zlnode);
+//    // if(zlnode) {
+//    //     // output testPushChar2
+//    //     cout<< zlnode->content.data() <<endl;
+//    // }
+//    // zlnode = zp->find(testPushChar1, sizeof(testPushChar1));
+//    // zlnode = zp->prev(zlnode);
+//    // if(zlnode) {
+//    //     cout<< zlnode->content.data() <<endl;
+//    // }
+//    // else {
+//    //     //output err
+//    //     cout<< "Err!" <<endl;
+//    // }
+//
+//    //测试insert
+//    // zp->output_store();
+//    char testInsert[] = "after second";
+//    zp->insert(2, testInsert, sizeof(testInsert));
+//    // zp->output_store();
+//
+//    char testStartInsert[] = "be first";
+//    zp->insert(0, testStartInsert, sizeof(testStartInsert));
+//    // zp->output_store();
+//
+//    int testInsertInt = 777;
+//    zp->insert(4, testInsertInt);
+//    // cout<<zp->index(5)->value<<endl;
+//    // zp->output_store();
+//    // zp->output_node_content();
+//
+//    //测试delete_
+//    // zlnode = zp->find(777);
+//    // if(zlnode == nullptr) {
+//    //     cout<<"Err"<<endl;
+//    // }
+//    // else {
+//    //     if (zp->delete_(zlnode) == Ok) {
+//    //         zp->output_store();
+//    //     }
+//    //     else {
+//    //         cout<< "Err!" <<endl;
+//    //     }
+//    // }
+//
+//    // zlnode = zp->find(testStartInsert, sizeof(testStartInsert));
+//    // if(zlnode == nullptr) {
+//    //     cout<<"Err"<<endl;
+//    // }
+//    // else {
+//    //     if (zp->delete_(zlnode) == Ok) {
+//    //         zp->output_store();
+//    //     }
+//    //     else {
+//    //         cout<< "Err!" <<endl;
+//    //     }
+//    // }
+//
+//    //测试delete_range
+//    zlnode = zp->find(testInsert, sizeof(testInsert));
+//    if(zlnode == nullptr) {
+//        cout<<"Err"<<endl;
+//    }
+//    else {
+//        if (zp->delete_range(zlnode, 3) == Ok) {
+//            zp->output_node_content();
+//            // zp->output_store();
+//        }
+//        else {
+//            cout<< "Err!" <<endl;
+//        }
+//    }
+//
+//    //测试较长字符串的插入
+//    // char testLongStr[] = "longlonglonglonglonglonglonglong\
+//    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+//    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+//    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+//    // longlonglonglonglonglonglonglonglonglonglonglonglonglong\
+//    // longlonglonglonglonglonglonglonglonglonglonglonglonglong";
+//    // zp->insert(3, testLongStr, sizeof(testLongStr));
+//    // zp->output_node_content();
+//
+//    zp->insert(3, 333);
+//    // zp->output_node_content();
+//
+//    //较短字符串的插入
+//    char testShortStr[] = "shortshort";
+//    zp->insert(4, testShortStr, sizeof(testShortStr));
+//    zp->output_node_content();
+//
+//    // zlnode = zp->find(testShortStr, sizeof(testShortStr));
+//    // if(zlnode == nullptr) {
+//    //     cout<<"Err"<<endl;
+//    // }
+//    // else {
+//    //     if (zp->delete_(zlnode) == Ok) {
+//    //         zp->output_node_content();
+//    //     }
+//    //     else {
+//    //         cout<< "Err!" <<endl;
+//    //     }
+//    // }
+//
+//
+//    //测试blob_len()和len()
+//    // cout<<zp->blob_len()<<endl;
+//    // cout<<zp->len()<<endl;
+//
+//    delete zlnode;
+//    delete zp;
+//    return 0;
+//}
 
 ZiplistHandle NewZiplist() {
     return new ziplist();
