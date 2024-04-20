@@ -1561,6 +1561,14 @@ ziplist_node* ziplist::prev(ziplist_node* cur) {
 //     zp->output_node_content();
 //     //zp->output_store();
 
+//     //测试长字符串删除
+//     if (zp->delete_(zp->find(testLongStr, sizeof(testLongStr))) == Ok) {
+//         zp->output_node_content();
+//     }
+//     else {
+//         cout<< "Err!" <<endl;
+//     }
+
 //     //较短字符串的插入
 //     //char testShortStr[] = "shortshort";
 //     //zp->insert(4, testShortStr, sizeof(testShortStr));
