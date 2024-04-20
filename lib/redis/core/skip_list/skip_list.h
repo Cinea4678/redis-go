@@ -13,7 +13,10 @@ class SkipListNode;
 class SkipListSiblingNode;
 class SkipList;
 
+// ZSet(SkipList)存储Value数据类型(其实可以做成泛型)
 typedef uint32_t ZSetType;
+// level/length/span等的数据类型
+typedef uint32_t ZSetSizeType;
 
 // 其实有些检查(例如针对score、value的单点查询中)是否存在是不必要的(因为哈希表要存)
 
@@ -52,17 +55,21 @@ private:
     ZSetType value; // 值(代表go对象的实际元素索引)
     double score;   // 分数
 
-    vector<SkipListNode*>
-        forward; // 前向指针: forward[0]对应level 1的后继节点，以此类推
+    // 前向指针: forward[0]对应level 1的后继节点，以此类推
+    vector<SkipListNode*> forward;
+
+    // 跨度: 与forward[i]中间相差多少个节点，长度与forward一致
+    vector<uint32_t> span;
+    // 重复score节点也算在内(每多一个重复节点都需要更新首节点forward++且更新“头顶经过forward”的span)
 
     // 后向指针: 指向直接前驱节点，但目前只是维护了其更新，还没用到
     // 可能的用途: 查询与某个val相同score的所有节点;用于优化范围查询等
     SkipListNode* backward;
     SkipListSiblingNode* nextSibling;
 
-    SkipListNode(double scr, ZSetType val, ZSetType level)
-        : score(scr), value(val), forward(level, nullptr), backward(nullptr),
-          nextSibling(nullptr) {}
+    SkipListNode(double scr, ZSetType val, ZSetSizeType level)
+        : score(scr), value(val), forward(level, nullptr), span(level, 0),
+          backward(nullptr), nextSibling(nullptr) {}
 
     ~SkipListNode() {}
 };
@@ -118,8 +125,8 @@ public:
 
     SkipListNode* Header() const { return this->header; }
     SkipListNode* Tail() const { return this->tail; }
-    ZSetType Level() const { return this->level; }
-    ZSetType Len() const { return this->length; }
+    ZSetSizeType Level() const { return this->level; }
+    ZSetSizeType Len() const { return this->length; }
 
     void insert(double score, ZSetType value);
 
@@ -143,11 +150,11 @@ public:
     // 打印跳表
     void print() const;
     // 打印指定层数跳表
-    void printLevel(ZSetType lvl) const;
+    void printLevel(ZSetSizeType lvl) const;
 
 private:
     // 随机生成层数(算法有待改善)
-    ZSetType randomLevel() const;
+    ZSetSizeType randomLevel() const;
 
     // 该部分操作函数返回值为节点指针
     //
@@ -163,6 +170,6 @@ private:
 
     SkipListNode* header; // 头节点
     SkipListNode* tail;   // 尾节点
-    ZSetType level;       // 当前最高层数
-    ZSetType length;      // 跳表长度
+    ZSetSizeType level;   // 当前最高层数
+    ZSetSizeType length;  // 跳表长度
 };

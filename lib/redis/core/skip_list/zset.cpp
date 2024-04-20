@@ -15,13 +15,14 @@ double zset::add(double score, ZSetType value) {
 }
 
 bool zset::remove(double score, ZSetType value) {
-    // value不存在则返回ZSetNotFound
+    // value不存在则返回false
     auto it = map.find(value);
     if (it == map.end()) {
-        return ZSetNotFound;
+        return false;
     }
 
     map.erase(it);
+    return true;
 }
 
 vector<ZSetType> zset::search(double score) {

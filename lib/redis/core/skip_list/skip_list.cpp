@@ -36,7 +36,7 @@ void SkipListNode::print() const {
             break;
         }
         cout << "forward[" << i << "]: " << forward[i]->value << " "
-             << forward[i]->score << ", ";
+             << forward[i]->score << " sp=" << span[i] << ", ";
     }
     if (backward) {
         cout << "backward: " << backward->score;
@@ -47,7 +47,7 @@ void SkipListNode::print() const {
 // 随机生成节点层数
 // 50%概率加层
 // 少量高层节点快速跳过大部分低层节点
-ZSetType SkipList::randomLevel() const {
+ZSetSizeType SkipList::randomLevel() const {
     int lvl = 1;
     while ((rand() & 1) && lvl < SKIP_LIST_MAX_LEVEL) {
         lvl++;
@@ -56,25 +56,28 @@ ZSetType SkipList::randomLevel() const {
 }
 
 void SkipList::insert(double score, ZSetType value) {
-    // 新节点层数
-    const ZSetType newNodeLevel = randomLevel();
+    cout << "Inserting [" << score << "] " << value << endl;
 
-    // cout << "Inserting [" << score << "] " << value << ", l=" << newNodeLevel
-    //      << endl;
+    // newNodeLevel<level时：0~nL为新节点需更新的直接前驱；nL~l为“从新节点头顶跨过”的需要更新span的
+    // newNodeLevel>=level时：0~l为新节点需更新的直接前驱，l~nL无需存储直接对header更新
+    vector<SkipListNode*> update(level, nullptr);
+    // 存储update[i]到header的距离
+    vector<ZSetSizeType> updateRank(level, 0);
 
-    // 存储新节点对应的前驱节点
-    vector<SkipListNode*> update(max(level, newNodeLevel), nullptr);
     SkipListNode* cur = header;
+    // cur到header的距离
+    ZSetSizeType dist = 0;
+
     // 从最高层开始，查找插入位置
     // 渐进式的查找，下一层查找起点在上一层终点
-    // 注意遍历查找要从level开始才能效率较大，但在小于等于newNodeLevel部分才会更新
     for (int i = level - 1; i >= 0; i--) {
         while (cur->forward[i] && cur->forward[i]->score < score) {
+            dist += cur->span[i];
             cur = cur->forward[i];
         }
-        if (i <= newNodeLevel) {
-            update[i] = cur;
-        }
+        // 如果level比newNodeLevel高，那么高出来的部分也要记录(需要更新跨度)
+        update[i] = cur;
+        updateRank[i] = dist;
     }
     // 经过上面的循环后，cur抵达小于score的最后一个Node(其第一层后继节点大于等于score)
 
@@ -82,30 +85,69 @@ void SkipList::insert(double score, ZSetType value) {
     if (cur->forward[0] && cur->forward[0]->score == score) {
         // 如果判定有相等的，则先抵达score对应的Node
         cur = cur->forward[0];
+        // 插入兄弟节点
         cur->AddSibling(value);
+
+        // 更新跨度
+
+        int curLevel = cur->forward.size();
+        // 每一个level的span++
+        for (int i = 0; i < curLevel; i++) {
+            cur->span[i]++;
+        }
+
+        // 如果当前节点层数小于目前最大层数，则“从cur顶上跨过的forward”的跨度需要++
+        for (int i = curLevel; i < level; i++) {
+            if (update[i]->forward[i]) { // 如果forward不指向null
+                update[i]->span[i]++;
+            }
+        }
         return;
     } // 直接return，无需更新其他forward
 
     // 如果无重复score
+    // 此时cur位置：newnode应该在的位置的直接前驱节点
+    // 新节点层数
+    const ZSetType newNodeLevel = randomLevel();
+    cout << "level = " << newNodeLevel << endl;
+    SkipListNode* newNode = new SkipListNode(score, value, newNodeLevel);
 
-    // 如果新节点层数大于目前最大节点层数，则多出来的部分指向header
     if (newNodeLevel > level) {
-        for (ZSetType i = level; i < newNodeLevel; i++) {
-            update[i] = header;
+        // 如果新节点层数大于目前最大层数:
+        // level以下的部分正常更新，多出来的部分指向header
+        for (int i = 0; i < level; i++) {
+            newNode->forward[i] = update[i]->forward[i];
+            newNode->span[i] = dist - updateRank[i] + 1;
+
+            update[i]->forward[i] = newNode;
+        }
+
+        for (int i = level; i < newNodeLevel; i++) {
+            // newNode->forward[i] = nullptr, newNode->span[i] = 0; // 本来就是
+            header->forward[i] = newNode;
+            header->span[i] = dist + 1;
         }
         level = newNodeLevel;
+    } else {
+        // 如果新节点层数小于目前最大层数:
+        // newNodeLevel以下的部分正常更新，nL~l的部分需要更新跨度
+        for (int i = 0; i < newNodeLevel; i++) {
+            newNode->forward[i] = update[i]->forward[i];
+            newNode->span[i] = dist - updateRank[i] + 1;
+
+            update[i]->forward[i] = newNode;
+        }
+
+        // 如果新节点层数小于目前最大层数，则“从newNode顶上跨过的forward”的跨度需要++
+        for (int i = newNodeLevel; i < level; i++) {
+            if (update[i]->forward[i]) { // 如果forward不指向null
+                update[i]->span[i]++;
+            }
+        }
     }
 
-    SkipListNode* newNode = new SkipListNode(score, value, newNodeLevel);
-    // 将新节点插入到前驱与后继之间，其实就是链表插入操作
-
-    for (ZSetType i = 0; i < newNodeLevel; i++) {
-        newNode->forward[i] = update[i]->forward[i];
-        update[i]->forward[i] = newNode;
-    }
-
-    // 设置后向指针
-    newNode->backward = update[0];
+    // 设置后向指针：由于修改了update存储的长度，所以不能还是单纯存update[0]了
+    newNode->backward = update.size() > 0 ? update[0] : header;
 
     // 设置后继节点的后向指针
     if (newNode->forward[0]) {
@@ -348,8 +390,8 @@ void SkipList::print() const {
     cout << "{Skip List}-------------------------------" << endl;
 }
 
-void SkipList::printLevel(ZSetType lvl) const {
-    cout << "[Skip List] level: " << lvl << endl;
+void SkipList::printLevel(ZSetSizeType lvl) const {
+    cout << "[Skip List] level: " << lvl + 1 << endl;
     SkipListNode* cur = header->forward[lvl];
 
     while (cur) {
@@ -364,48 +406,3 @@ void SkipList::printLevel(ZSetType lvl) const {
     }
     cout << "null" << endl;
 }
-
-// int main() {
-//     const int testCount = int(1e6);
-//     srand(514); // 初始化随机种子
-
-//     chrono::time_point<chrono::system_clock> start, end;
-//     chrono::duration<double, std::milli> elapsed;
-//     SkipList list;
-//     cout << "Finish new list" << endl;
-
-//     // Test: insert
-//     start = chrono::system_clock::now();
-//     for (int i = 0; i < testCount; i++) {
-//         list.insert(rand() % testCount * 0.1, i);
-//     }
-//     end = chrono::system_clock::now();
-//     elapsed = end - start;
-//     cout << "SkipList insert time: " << elapsed.count() << " ms" << endl;
-
-//     // std::priority_queue<pair<double, ZSetType>> stdList;
-//     // start = chrono::system_clock::now();
-//     // for (int i = 0; i < testCount; i++) {
-//     //     stdList.push({rand() % testCount * 0.1, i});
-//     // }
-//     // end = chrono::system_clock::now();
-//     // elapsed = end - start;
-//     // cout << "SkipList insert time: " << elapsed.count() << " ms" << endl;
-
-//     // Test: search
-//     start = chrono::system_clock::now();
-//     for (int i = 0; i < testCount; i++) {
-//         list.search(rand() % testCount * 0.1);
-//     }
-//     end = chrono::system_clock::now();
-//     elapsed = end - start;
-//     cout << "SkipList search time: " << elapsed.count() << " ms" << endl;
-
-//     // for (auto i : list.searchRange(20, 30))
-//     // cout << i.first << " " << i.second << endl;
-//     // list.print();
-
-//     // TODO: 补充查找和删除的测试
-
-//     return 0;
-// }
