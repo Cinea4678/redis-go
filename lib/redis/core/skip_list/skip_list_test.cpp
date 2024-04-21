@@ -18,7 +18,7 @@ int main() {
         list.insert(rand() % testCount * 0.1, i);
         // list.print();
     }
-    // list.print();
+    list.print();
     end = chrono::system_clock::now();
     elapsed = end - start;
     cout << "SkipList insert time: " << elapsed.count() << " ms" << endl;
@@ -41,11 +41,32 @@ int main() {
     elapsed = end - start;
     cout << "SkipList search time: " << elapsed.count() << " ms" << endl;
 
-    // for (auto i : list.searchRange(20, 30))
-    // cout << i.first << " " << i.second << endl;
-    // list.print();
+    // start = chrono::system_clock::now();
+    // for (auto i : list.searchRange(50, 100)) {
+    //     cout << i.first << ":" << i.second << ", ";
+    // }
+    // cout << endl;
+
+    // end = chrono::system_clock::now();
+    // elapsed = end - start;
+    // cout << "SkipList searchRange time: " << elapsed.count() << " ms" <<
+    // endl;
 
     // TODO: 补充查找和删除的测试
+
+    auto rm = list.remove(46.2);
+    if (!rm.empty()) {
+        cout << "Remove sucessfully, value = ";
+        for (auto i : rm) {
+            cout << i << ", ";
+        }
+        cout << endl;
+    }
+
+    if (list.remove(12.8, 67)) {
+        cout << "Remove sucessfully" << endl;
+    }
+    list.print();
 
     return 0;
 }

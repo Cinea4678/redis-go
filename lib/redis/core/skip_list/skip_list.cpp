@@ -56,7 +56,7 @@ ZSetSizeType SkipList::randomLevel() const {
 }
 
 void SkipList::insert(double score, ZSetType value) {
-    cout << "Inserting [" << score << "] " << value << endl;
+    // cout << "Inserting [" << score << "] " << value << endl;
 
     // newNodeLevel<level时：0~nL为新节点需更新的直接前驱；nL~l为“从新节点头顶跨过”的需要更新span的
     // newNodeLevel>=level时：0~l为新节点需更新的直接前驱，l~nL无需存储直接对header更新
@@ -109,7 +109,7 @@ void SkipList::insert(double score, ZSetType value) {
     // 此时cur位置：newnode应该在的位置的直接前驱节点
     // 新节点层数
     const ZSetType newNodeLevel = randomLevel();
-    cout << "level = " << newNodeLevel << endl;
+    // cout << "level = " << newNodeLevel << endl;
     SkipListNode* newNode = new SkipListNode(score, value, newNodeLevel);
 
     if (newNodeLevel > level) {
@@ -200,9 +200,11 @@ vector<SkipListNode*> SkipList::searchRangeNode(double lscore, double rscore) {
 SkipListNode* SkipList::removeNode(double score) {
     vector<SkipListNode*> update(level, nullptr);
     SkipListNode* cur = header;
+    // 该score的所有节点的数量
+    int num = 1;
 
     // 寻找所有层的前驱节点，应该从1开始，而不是0
-    for (int i = level; i > 0; i--) {
+    for (int i = level; i >= 0; i--) {
         while (cur->forward[i] && cur->forward[i]->score < score) {
             cur = cur->forward[i];
         }
@@ -220,29 +222,33 @@ SkipListNode* SkipList::removeNode(double score) {
     // 循环删除所有兄弟节点
     SkipListSiblingNode* last = cur->nextSibling;
     while (last) {
+        num++;
         SkipListSiblingNode* nxt = last->nextSibling;
         delete last;
         last = nxt;
     }
 
-    // 从第一层往上找（因为一定是较低层有前驱节点而较高层无
-    // 此处是用判定update[i]->forward[i]是否为cur的方式来确认cur是否为某个节点的后继节点的
-    for (int i = 0; i < level; i++) {
-        if (update[i]->forward[i] != cur)
-            break;
+    // 前驱节点的更新
+    int curLevel = cur->forward.size();
+    for (int i = 0; i < curLevel; i++) {
         update[i]->forward[i] = cur->forward[i];
+        // 前驱节点的span更新
+        update[i]->span[i] = update[i]->span[i] + cur->span[i] - num;
+    }
+
+    // “从cur顶上跨过的forward”的span更新
+    for (int i = curLevel; i < level; i++) {
+        update[i]->span[i] -= num;
     }
 
     delete cur;
 
     // 更新backward和tail指针
-    // 如果对第一层而言，删除节点为最后一个节点，则更新tail
-    if (update[0]->forward[0] == nullptr) {
-        tail = update[0];
-    }
-    // 如果删除前存在直接后继，则更新其的backward指针
+    // 如果删除的不是最后一个节点，则更新其的backward指针
     if (update[0]->forward[0]) {
         update[0]->forward[0]->backward = update[1];
+    } else { // 如果对第一层而言，删除节点为最后一个节点，则更新tail
+        tail = update[0];
     }
 
     // 更新跳表层数
@@ -312,7 +318,7 @@ bool SkipList::remove(double score, ZSetType value) {
     SkipListNode* cur = header;
 
     // 寻找所有层的前驱节点，应该从1开始，而不是0
-    for (int i = level; i > 0; i--) {
+    for (int i = level; i >= 0; i--) {
         while (cur->forward[i] && cur->forward[i]->score < score) {
             cur = cur->forward[i];
         }
@@ -333,6 +339,7 @@ bool SkipList::remove(double score, ZSetType value) {
     // 如果首节点非对应value，则遍历Sibling后进行简单的链表删除(理论上在上层判断，此处不会有找不到的情况，不过还是处理了)
 
     // 如果首节点就是对应value
+    int curLevel = cur->forward.size();
     if (cur->value == value) {
         SkipListSiblingNode* firstSibling = cur->nextSibling;
         if (firstSibling) { // 有兄弟节点
@@ -340,24 +347,38 @@ bool SkipList::remove(double score, ZSetType value) {
             cur->value = value;
             cur->nextSibling = firstSibling->nextSibling;
 
+            // 所有的span--
+            for (int i = 0; i < curLevel; i++) {
+                cur->span[i]--;
+            }
+
             delete firstSibling;
-            return true;
-        }
-        // 无兄弟节点，则与只传入score的重载的操作一致
-        for (int i = 0; i < level; i++) {
-            if (update[i]->forward[i] != cur)
-                break;
-            update[i]->forward[i] = cur->forward[i];
-        }
-        delete cur;
-        if (update[0]->forward[0] == nullptr) {
-            tail = update[0];
-        }
-        if (update[0]->forward[0]) {
-            update[0]->forward[0]->backward = update[1];
-        }
-        while (level > 1 && header->forward[level] == nullptr) {
-            level--;
+        } else {
+            // 无兄弟节点，则与只传入score的重载的操作一致
+
+            for (int i = 0; i < curLevel; i++) {
+                update[i]->forward[i] = cur->forward[i];
+                // 前驱节点的span更新
+                update[i]->span[i] = update[i]->span[i] + cur->span[i] - 1;
+            }
+
+            // “从cur顶上跨过的forward”的span更新
+            for (int i = curLevel; i < level; i++) {
+                update[i]->span[i]--;
+            }
+
+            delete cur;
+
+            // 同上，更新tail和bk
+            if (update[0]->forward[0]) {
+                update[0]->forward[0]->backward = update[1];
+            } else {
+                tail = update[0];
+            }
+
+            while (level > 0 && header->forward[level] == nullptr) {
+                level--;
+            }
         }
         return true;
     }
@@ -370,15 +391,20 @@ bool SkipList::remove(double score, ZSetType value) {
     if (sibling->value == value) {
         cur->nextSibling = sibling->nextSibling;
         delete sibling;
+        return true;
     } else {
+        // 如果不是，则遍历
         SkipListSiblingNode* next = sibling->nextSibling;
         while (next) {
             if (next->value == value) {
                 sibling->nextSibling = next->nextSibling;
                 delete next;
+                return true;
             }
         }
     }
+
+    // 理论不会出现return false的情况，因为查询的存在性由哈希表验证
     return false;
 }
 
