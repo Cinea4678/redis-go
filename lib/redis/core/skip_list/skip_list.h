@@ -59,8 +59,9 @@ private:
     vector<SkipListNode*> forward;
 
     // 跨度: 与forward[i]中间相差多少个节点，长度与forward一致
-    vector<uint32_t> span;
     // 重复score节点也算在内(每多一个重复节点都需要更新首节点forward++且更新“头顶经过forward”的span)
+    // cur->span[0]的大小代表当前score一共有几个兄弟节点(即不同value)
+    vector<uint32_t> span;
 
     // 后向指针: 指向直接前驱节点，但目前只是维护了其更新，还没用到
     // 可能的用途: 查询与某个val相同score的所有节点;用于优化范围查询等
@@ -134,7 +135,7 @@ public:
     // SkipListNode* find(ZSetType value);
 
     // 该部分操作函数返回值为数值(外部调用使用这一部分)
-    //
+
     // 单点查询，寻找对应score的所有值
     vector<ZSetType> search(double score);
     // 范围查询，在上层调用中检查l与r的大小与范围关系，此处不检查
@@ -147,6 +148,7 @@ public:
     bool remove(double score, ZSetType value);
 
     // 该部分函数为测试用
+
     // 打印跳表
     void print() const;
     // 打印指定层数跳表
@@ -157,16 +159,22 @@ private:
     ZSetSizeType randomLevel() const;
 
     // 该部分操作函数返回值为节点指针
-    //
+
     // 寻找对应score的首结点
     SkipListNode* searchNode(double score);
     //
-    // 在上层调用中检查l与r的大小与范围关系，此处不检查
+    // 在上面public的函数及更上层调用中检查l与r的大小与范围关系，此处不检查。
     // 寻找对应范围的首节点
     vector<SkipListNode*> searchRangeNode(double lscore, double rscore);
     //
     // 删除同一score的所有节点并返回删除的首节点
     SkipListNode* removeNode(double score);
+    //
+    // 按排名查找
+    SkipListNode* searchRankNode(int rank);
+    // 按排名范围查找，同理不检查上下界合法，上下界也仅适用正数。
+    // 约定如果出现如下情况：对score=[1,1,1,2,2,3]查询rank(2~4)，则会返回1,1,1,2,2（左右界都是粘到就算）
+    vector<SkipListNode*> searchRankRangeNode(int lrank, int rrank);
 
     SkipListNode* header; // 头节点
     SkipListNode* tail;   // 尾节点

@@ -178,6 +178,7 @@ SkipListNode* SkipList::searchNode(double score) {
     return cur;
 }
 
+// 无需额外检查l>r的情况(正常返回空vector)
 vector<SkipListNode*> SkipList::searchRangeNode(double lscore, double rscore) {
     vector<SkipListNode*> result;
     SkipListNode* cur = header;
@@ -256,7 +257,58 @@ SkipListNode* SkipList::removeNode(double score) {
         level--;
     }
 
+    length--;
+
     return cur;
+}
+
+// searchNode不检查上下界直接调用不会出错，但对
+SkipListNode* SkipList::searchRankNode(int rank) {
+    SkipListNode* cur = header;
+    int curRank = 0;
+    for (int i = level - 1; i >= 0; i--) {
+        while (cur->forward[i] && curRank + cur->span[i] < rank) {
+            cur = cur->forward[i];
+            curRank += cur->span[i];
+        }
+    }
+    // 此时得到的是curRank小于rank的最后一个节点
+    // 再进一个等于或大于(大于的情况是cur的重复score节点并列排名包括了要查找的rank)
+    // 等于则返回下一个，大于则返回当前
+    if (curRank + cur->span[0] == rank) {
+        cur = cur->forward[0];
+    }
+
+    return cur;
+}
+
+vector<SkipListNode*> SkipList::searchRankRangeNode(int lrank, int rrank) {
+    vector<SkipListNode*> result;
+
+    SkipListNode* cur = header;
+    int curRank = 0;
+    for (int i = level - 1; i >= 0; i--) {
+        while (cur->forward[i] && curRank + cur->span[i] < lrank) {
+            cur = cur->forward[i];
+            curRank += cur->span[i];
+        }
+    }
+
+    // 此时得到的是curRank小于rank的最后一个节点
+    // 再进一个等于或大于(大于的情况是cur的重复score节点并列排名包括了要查找的rank)
+    // 等于则返回下一个，大于则返回当前
+    if (curRank + cur->span[0] == lrank) {
+        cur = cur->forward[0];
+        curRank += cur->span[0];
+    }
+
+    while (curRank <= rrank) {
+        cur = cur->forward[0];
+        result.push_back(cur);
+        curRank += cur->span[0];
+    }
+
+    return result;
 }
 
 vector<ZSetType> SkipList::search(double score) {
@@ -279,6 +331,17 @@ vector<ZSetType> SkipList::search(double score) {
 vector<pair<double, ZSetType>> SkipList::searchRange(double lscore,
                                                      double rscore) {
     vector<pair<double, ZSetType>> result;
+
+    // 检查score范围
+    if (lscore < 0)
+        lscore = length + lscore;
+    if (rscore < 0)
+        rscore = length + rscore;
+
+    if (lscore > length || rscore <= 0 || lscore > rscore) {
+        return result;
+    }
+
     vector<SkipListNode*> r = searchRangeNode(lscore, rscore);
     if (r.empty()) { // not found
         return result;
@@ -380,6 +443,7 @@ bool SkipList::remove(double score, ZSetType value) {
                 level--;
             }
         }
+        length--;
         return true;
     }
     // 首节点非对应value
@@ -391,6 +455,7 @@ bool SkipList::remove(double score, ZSetType value) {
     if (sibling->value == value) {
         cur->nextSibling = sibling->nextSibling;
         delete sibling;
+        length--;
         return true;
     } else {
         // 如果不是，则遍历
@@ -399,6 +464,7 @@ bool SkipList::remove(double score, ZSetType value) {
             if (next->value == value) {
                 sibling->nextSibling = next->nextSibling;
                 delete next;
+                length--;
                 return true;
             }
         }
