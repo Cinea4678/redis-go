@@ -18,7 +18,7 @@ int main() {
         list.insert(rand() % testCount * 0.1, i);
         // list.print();
     }
-    list.print();
+    // list.print();
     end = chrono::system_clock::now();
     elapsed = end - start;
     cout << "SkipList insert time: " << elapsed.count() << " ms" << endl;
@@ -67,6 +67,17 @@ int main() {
         cout << "Remove sucessfully" << endl;
     }
     list.print();
+
+    auto res = list.searchRank(114);
+    cout << "searchRank found:" << res.first << " " << res.second << endl;
+
+    auto res2 = list.searchRankRange(100, 101);
+    cout << "searchRankRang found ";
+    cout << res2.size() << " :";
+    for (auto r : res2) {
+        cout << r.first << " " << r.second;
+    }
+    cout << endl;
 
     return 0;
 }

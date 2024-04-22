@@ -1,4 +1,5 @@
 #include "skip_list.h"
+#include <vector>
 
 inline void SkipListNode::AddSibling(ZSetType value) {
     SkipListSiblingNode* last = this->nextSibling;
@@ -262,14 +263,15 @@ SkipListNode* SkipList::removeNode(double score) {
     return cur;
 }
 
-// searchNode不检查上下界直接调用不会出错，但对
-SkipListNode* SkipList::searchRankNode(int rank) {
+pair<int, SkipListNode*> SkipList::searchRankNode(int rank) {
     SkipListNode* cur = header;
     int curRank = 0;
     for (int i = level - 1; i >= 0; i--) {
         while (cur->forward[i] && curRank + cur->span[i] < rank) {
-            cur = cur->forward[i];
+            // cout << "level:" << i << endl;
+            // cout << "curRank=" << curRank << "+" << cur->span[i] << endl;
             curRank += cur->span[i];
+            cur = cur->forward[i];
         }
     }
     // 此时得到的是curRank小于rank的最后一个节点
@@ -277,38 +279,10 @@ SkipListNode* SkipList::searchRankNode(int rank) {
     // 等于则返回下一个，大于则返回当前
     if (curRank + cur->span[0] == rank) {
         cur = cur->forward[0];
+        curRank = rank;
     }
 
-    return cur;
-}
-
-vector<SkipListNode*> SkipList::searchRankRangeNode(int lrank, int rrank) {
-    vector<SkipListNode*> result;
-
-    SkipListNode* cur = header;
-    int curRank = 0;
-    for (int i = level - 1; i >= 0; i--) {
-        while (cur->forward[i] && curRank + cur->span[i] < lrank) {
-            cur = cur->forward[i];
-            curRank += cur->span[i];
-        }
-    }
-
-    // 此时得到的是curRank小于rank的最后一个节点
-    // 再进一个等于或大于(大于的情况是cur的重复score节点并列排名包括了要查找的rank)
-    // 等于则返回下一个，大于则返回当前
-    if (curRank + cur->span[0] == lrank) {
-        cur = cur->forward[0];
-        curRank += cur->span[0];
-    }
-
-    while (curRank <= rrank) {
-        cur = cur->forward[0];
-        result.push_back(cur);
-        curRank += cur->span[0];
-    }
-
-    return result;
+    return {curRank, cur};
 }
 
 vector<ZSetType> SkipList::search(double score) {
@@ -472,6 +446,98 @@ bool SkipList::remove(double score, ZSetType value) {
 
     // 理论不会出现return false的情况，因为查询的存在性由哈希表验证
     return false;
+}
+
+pair<double, ZSetType> SkipList::searchRank(int rank) {
+    if (rank < 0) { // 倒数转为正数
+        rank = length + rank;
+    }
+    if (rank <= 0 || rank > length) { // 不合法rank
+        return {SkipListNotFound, 0};
+    }
+
+    auto res = searchRankNode(rank);
+    int startRank = res.first;
+    SkipListNode* cur = res.second;
+    // cout << "startRank=" << startRank << " cur->value=" << cur->value <<
+    // endl;
+
+    // 头结点就是对应的rank
+    if (startRank == rank) {
+        // cout << "searchRank1" << endl;
+        return {cur->score, cur->value};
+    }
+
+    SkipListSiblingNode* sibling = cur->nextSibling;
+    for (int i = 0; i < rank - startRank - 1; i++) {
+        // 理论上这里循环次数不会出错
+        // cout << "searchRank2" << endl;
+        sibling = sibling->nextSibling;
+    }
+
+    return {cur->score, sibling->value};
+}
+
+vector<pair<double, ZSetType>> SkipList::searchRankRange(int lrank, int rrank) {
+    vector<pair<double, ZSetType>> result;
+    if (lrank < 0) { // 倒数转为正数
+        lrank = length + lrank;
+    }
+    if (rrank < 0) {
+        rrank = length + rrank;
+    }
+    if (lrank > length || rrank <= 0) { // 不合法rank
+        return result;
+    }
+
+    pair<int, SkipListNode*> res;
+    // 如果左界小于等于0，则从头开始
+    if (lrank <= 0) {
+        res = {1, header->forward[0]};
+    } else { // 否则则找到左界
+        res = searchRankNode(lrank);
+    }
+
+    int curRank = res.first;
+    SkipListNode* cur = res.second;
+    SkipListSiblingNode* sibling;
+
+    // 如果起始rank小于lrank，说明lrank包含在重复score的一个sibling中
+    if (curRank < lrank) {
+        // 从第一个sibling开找
+        sibling = cur->nextSibling;
+        curRank++;
+
+        // 理论不会出现sibling先达到null的情况
+        while (curRank < lrank) {
+            sibling = sibling->nextSibling;
+            curRank++;
+        }
+
+        // 到了lrank后，小于rrank的全部推入
+        while (sibling && curRank <= rrank) {
+            result.push_back({cur->score, sibling->value});
+            sibling = sibling->nextSibling;
+            curRank++;
+        }
+        // 移动到直接后继
+        cur = cur->forward[0];
+        curRank++;
+    }
+    // 否则当前首节点就对应开始的lrank，可以直接开始遍历
+
+    // 开始遍历
+    while (cur && curRank <= rrank) {
+        result.push_back({cur->score, cur->value});
+        curRank++;
+        sibling = cur->nextSibling;
+        while (sibling && curRank <= rrank) {
+            result.push_back({cur->score, sibling->value});
+            sibling = sibling->nextSibling;
+            curRank++;
+        }
+    }
+    return result;
 }
 
 void SkipList::print() const {

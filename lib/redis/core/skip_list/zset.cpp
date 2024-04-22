@@ -49,3 +49,15 @@ vector<ZSetType> zset::searchValue(ZSetType value) {
     }
     return vector<ZSetType>(0);
 };
+
+pair<double, ZSetType> zset::searchRank(int rank) {
+    auto result = list.searchRank(rank);
+    if (result.first == SkipListNotFound) {
+        return {ZSetNotFound, 0};
+    }
+    return result;
+}
+
+vector<pair<double, ZSetType>> zset::searchRankRange(int lrank, int rrank) {
+    return searchRankRange(lrank, rrank);
+}

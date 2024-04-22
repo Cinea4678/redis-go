@@ -34,6 +34,12 @@ public:
     vector<pair<double, ZSetType>> searchRange(double lscore, double rscore);
     // 按值查找(本质还是按score查找)
     vector<ZSetType> searchValue(ZSetType value);
+    // 按排名查找(负数代表倒数，同score按照插入先后排序)
+    // 返回score，value对
+    pair<double, ZSetType> searchRank(int rank);
+    // 按排名范围查找(允许l<=0或r>length)
+    // 返回score，value对的vector
+    vector<pair<double, ZSetType>> searchRankRange(int lrank, int rrank);
 
 private:
     // value->score哈希表

@@ -2,11 +2,13 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 using namespace std;
 
 #define SKIP_LIST_MAX_LEVEL 32 // 最大层数
+const double SkipListNotFound = numeric_limits<double>::min();
 
 // 前向声明
 class SkipListNode;
@@ -129,6 +131,7 @@ public:
     ZSetSizeType Level() const { return this->level; }
     ZSetSizeType Len() const { return this->length; }
 
+    // 重复score的节点以Sibling的形式链表插入
     void insert(double score, ZSetType value);
 
     // 此处不做按值查找，而是在zset的哈希表中存其score，将value查找置换为score
@@ -146,6 +149,12 @@ public:
     // 删除指定val的节点并返回是否成功(score由hash表传入)
     // 检查是否存在value，以及返回对应score应该在上层处理
     bool remove(double score, ZSetType value);
+    //
+    // 按排名查询，负数则转换为“倒数第n个”
+    // 同score则按照插入顺序正序排名
+    pair<double, ZSetType> searchRank(int rank);
+    // 按排名范围查找。
+    vector<pair<double, ZSetType>> searchRankRange(int lrank, int rrank);
 
     // 该部分函数为测试用
 
@@ -170,11 +179,8 @@ private:
     // 删除同一score的所有节点并返回删除的首节点
     SkipListNode* removeNode(double score);
     //
-    // 按排名查找
-    SkipListNode* searchRankNode(int rank);
-    // 按排名范围查找，同理不检查上下界合法，上下界也仅适用正数。
-    // 约定如果出现如下情况：对score=[1,1,1,2,2,3]查询rank(2~4)，则会返回1,1,1,2,2（左右界都是粘到就算）
-    vector<SkipListNode*> searchRankRangeNode(int lrank, int rrank);
+    // 按排名查找，返回值为首节点及其rank(如果有重复score节点则小于要找的rank)
+    pair<int, SkipListNode*> searchRankNode(int rank);
 
     SkipListNode* header; // 头节点
     SkipListNode* tail;   // 尾节点
