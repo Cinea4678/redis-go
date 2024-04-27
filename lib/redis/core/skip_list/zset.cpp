@@ -1,6 +1,67 @@
-#include "zset.h"
 #include <algorithm>
+#include <limits>
+#include <unordered_map>
 #include <vector>
+
+#include "skip_list.h"
+
+using namespace std;
+
+extern "C" {
+#include "zset.h"
+}
+
+#define OK 0
+#define Err 1
+
+// 使用两个特殊的double值表示状态，避免额外状态位的设定
+const double ZSetNotFound = numeric_limits<double>::min();
+const double ZSetSuccess = numeric_limits<double>::max();
+
+// 有序集合
+class zset {
+
+public:
+    zset();
+    ~zset();
+
+    // 获取对应元素的score
+    double getScore(ZSetType value) const {
+        auto it = map.find(value);
+        if (it != map.end()) {
+            return it->second;
+        }
+        return ZSetNotFound;
+    }
+
+    int len() const { return map.size(); }
+
+    // 添加元素，若已存在则返回value对应score
+    double add(double score, ZSetType value);
+    // 移除元素，返回对应value
+    vector<ZSetType> remove(double score);
+    // 按值移除，若不存在则返回false
+    bool remove(double score, ZSetType value);
+    // 查找元素
+    vector<ZSetType> search(double score);
+    // 如果l大于r，则反向输出
+    vector<pair<double, ZSetType>> searchRange(double lscore, double rscore);
+    // 按值查找(本质还是按score查找)
+    vector<ZSetType> searchValue(ZSetType value);
+    // 按排名查找(负数代表倒数，同score按照插入先后排序)
+    // 返回score，value对
+    pair<double, ZSetType> searchRank(int rank);
+    // 按排名范围查找(允许l<=0或r>length)
+    // 返回score，value对的vector
+    vector<pair<double, ZSetType>> searchRankRange(int lrank, int rrank);
+
+private:
+    // value->score哈希表
+    unordered_map<ZSetType, double> map;
+
+    // 跳跃表
+    SkipList list;
+};
 
 double zset::add(double score, ZSetType value) {
     // value已存在则返回其对应score
@@ -12,6 +73,19 @@ double zset::add(double score, ZSetType value) {
     map[value] = score;
     list.insert(score, value);
     return ZSetSuccess;
+}
+
+vector<ZSetType> zset::remove(double score) {
+    vector<ZSetType> result;
+    result = list.remove(score);
+    for (auto r : result) {
+        auto it = map.find(r);
+        // 理论上是都会找到的
+        if (it != map.end()) {
+            map.erase(it);
+        }
+    }
+    return result;
 }
 
 bool zset::remove(double score, ZSetType value) {
@@ -60,4 +134,30 @@ pair<double, ZSetType> zset::searchRank(int rank) {
 
 vector<pair<double, ZSetType>> zset::searchRankRange(int lrank, int rrank) {
     return searchRankRange(lrank, rrank);
+}
+
+void* NewZSet() {
+    zset* zs = new zset();
+    return static_cast<zset*>(zs);
+}
+
+int ReleaseZSet(void* zs) {
+    delete static_cast<zset*>(zs);
+    return OK;
+}
+
+int DictLen(void* zs) {
+    return static_cast<zset*>(zs)->len();
+}
+
+double ZSetAdd(void* zs, double score, ZSetType value) {
+    return static_cast<zset*>(zs)->add(score, value);
+}
+
+double ZSetNotFoundSign() {
+    return ZSetNotFound;
+}
+
+double ZSetSuccessSign() {
+    return ZSetSuccess;
 }
