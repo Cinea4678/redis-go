@@ -1,9 +1,6 @@
 package redis
 
 import (
-	"github.com/panjf2000/gnet/v2"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
@@ -11,7 +8,12 @@ import (
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
+	"redis-go/lib/redis/zset"
 	"strconv"
+
+	"github.com/panjf2000/gnet/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -28,6 +30,7 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, system.CommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, zset.ZSetCommandTable...)
 }
 
 // 初始化server
