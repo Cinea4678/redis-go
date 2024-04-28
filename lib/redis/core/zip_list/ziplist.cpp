@@ -795,6 +795,9 @@ size_t ziplist::get_prev_len(int pos) {
  * 若pos = 0，则插入在开头
 */
 ZipListResult ziplist::insert(int pos, char* bytes, int len) {
+    if (this->getZllen() == 0) {
+        return this->push(bytes, len);
+    }
     vector<uint8_t> new_node;   //构造新的待写入节点
     if (pos > this->getZllen() || pos < 0) {
         return Err;
@@ -885,6 +888,9 @@ ZipListResult ziplist::insert(int pos, char* bytes, int len) {
 }
 
 ZipListResult ziplist::insert(int pos, int64_t integer) {
+    if (this->getZllen() == 0) {
+        return this->push(integer);
+    }
     vector<uint8_t> new_node;   //构造新的待写入节点
     if (pos > this->getZllen() || pos < 0) {
         return Err;
