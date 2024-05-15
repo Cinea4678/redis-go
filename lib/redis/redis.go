@@ -7,6 +7,7 @@ import (
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
+	"redis-go/lib/redis/list"
 	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
@@ -28,6 +29,7 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, system.CommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, list.ListCommandTable...)
 }
 
 // 初始化server

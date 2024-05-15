@@ -1,6 +1,7 @@
 package ziplist
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -66,6 +67,17 @@ func TestZiplistNavigation(t *testing.T) {
 
 	if val := node.GetInteger(); val != testValue {
 		t.Errorf("GetInteger expected %d, got %d", testValue, val)
+	} else {
+		//GetInteger: 42
+		fmt.Printf("GetInteger: %d\n", val)
+	}
+
+	bytes := node.GetByteArray()
+	if bytes == nil {
+		fmt.Println("GetByteArray returned nil")
+	} else {
+		//GetByteArray: []
+		fmt.Printf("GetByteArray: %v\n", bytes)
 	}
 
 	nextNode := zl.Next(node)
