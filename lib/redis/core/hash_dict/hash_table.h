@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <functional>
 #include <optional>
+#include <iostream>
+#include <random>
 #include <string>
 
 
@@ -23,7 +25,11 @@ const uint64_t default_ht_size = 4;
 const static float expand_threshold = 0.8;
 const static float shrink_threshold = 0.2;
 
-enum { hashOk = 0, hashErr = -1 };
+enum {
+    hashOk = 0,
+    hashErr = -1,
+    hashAllocateErr = -2,
+};
 
 // 哈希表节点
 // 占48字节内存(32+8+8)
@@ -71,14 +77,17 @@ public:
     // 分配内存
     hash_table(const unsigned long size = default_ht_size)
         : size(size), sizemask(size - 1), used(0) {
-        table = size > 0 ? new hash_entry*[size]() : nullptr;
-        for (unsigned long i = 0; i < size; ++i)
-            table[i] = nullptr;
+        try {
+            table = size > 0 ? new hash_entry*[size]() : nullptr;
+            for (unsigned long i = 0; i < size; ++i)
+                table[i] = nullptr;
+        } catch (const std::bad_alloc& e) {
+            std::cerr << "Memory allocation failed during hash_table init: "
+                      << e.what() << endl;
+            delete[] table; // 确保释放分配失败前的内存
+        }
     }
-    ~hash_table() {
-        // 使用delete[]来释放对象数组
-        delete[] table;
-    }
+    ~hash_table() { delete[] table; }
 
     // 负载因子
     inline float load_factor() const {
@@ -101,6 +110,10 @@ public:
        返回值：删除key对应的val */
     int remove(const string& key);
 
+    /* 随机返回n个指向哈希表条目的迭代器
+       返回值：指向随机条目的迭代器数组 */
+    vector<hash_table_iterator> random(size_t n);
+
     // 清空哈希表（不重置为初始大小）
     void clear();
 
@@ -116,7 +129,9 @@ public:
     // 尾后迭代器
     hash_table_iterator end() const;
 
-    int getsize() const { return this->size; };
+    int getSize() const { return this->size; };
+
+    bool isEmpty() const { return this->used == 0; }
 
 private:
     // 哈希表数组，存指向哈希表第一排节点的指针
@@ -188,28 +203,29 @@ public:
     }
 
     // // 删除当前节点
+    // 直接调用找到的entry的remove即可
     // bool erase() {
-    //   if (!entry)
-    //     return false; // 如果当前节点为空，则不执行删除
+    //     if (!entry)
+    //         return false; // 如果当前节点为空，则不执行删除
 
-    //   hash_entry *toDelete = entry;
-    //   // 预先移动到下一个节点
-    //   advance();
+    //     hash_entry* toDelete = entry;
+    //     // 预先移动到下一个节点
+    //     advance();
 
-    //   // 执行删除操作
-    //   // 由于我们已经在迭代器中，我们可以直接访问 hash_table 的成员
-    //   if (prevEntry) {
-    //     // 如果不是第一个节点
-    //     prevEntry->next = entry->next;
-    //   } else {
-    //     // 如果是第一个节点
-    //     ht->table[bucket] = entry->next;
-    //   }
+    //     // 执行删除操作
+    //     // 如果不使用prevEntry则需要重新遍历过
+    //     if (prevEntry) {
+    //         // 如果不是第一个节点
+    //         prevEntry->next = entry->next;
+    //     } else {
+    //         // 如果是第一个节点
+    //         ht->table[bucket] = entry->next;
+    //     }
 
-    //   delete toDelete; // 删除节点
-    //   ht->used--;      // 更新已使用节点的数量
+    //     delete toDelete; // 删除节点
+    //     ht->used--;      // 更新已使用节点的数量
 
-    //   return true;
+    //     return true;
     // }
 
 private:
@@ -219,9 +235,20 @@ private:
 
     // 移动到下一个有效元素
     void advance() {
+        // 如果为有效节点，则直接到下一个
         if (entry) {
             entry = entry->next;
         }
+
+        // 检查是否到达了最后一个节点，或者当前已经是尾后迭代器
+        if (!entry && bucket > ht->sizemask) {
+            // 设置为尾后迭代器
+            bucket = ht->size;
+            entry = nullptr;
+            return;
+        }
+
+        // next为空，到下一个桶的开头找
         while (!entry && bucket < ht->size) {
             entry = ht->table[bucket++];
         }
