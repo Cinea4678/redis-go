@@ -1,12 +1,13 @@
 package str
 
 import (
-	"github.com/cinea4678/resp3"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
 	"redis-go/lib/redis/shared"
 	"strconv"
 	"strings"
+
+	"github.com/cinea4678/resp3"
 )
 
 /**
@@ -172,6 +173,45 @@ func doGet(client *core.RedisClient, key string) (err error) {
 		io.AddReplyObject(client, value)
 	}
 
+	return
+}
+
+/*
+Append：如果key已存在且为字符串，则追加到末尾；如果不存在，则设置为空字符串
+Syntax: APPEND key value
+Reply: append完成后value的长度
+*/
+func Append(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 2 {
+		return errNotEnoughArgs
+	}
+
+	key := req[0].Str
+	appendValue := req[1].Str
+
+	db := client.Db
+
+	// 查找键对应的值
+	obj := db.LookupKey(key)
+
+	// 如果键不存在，直接将值设置为给定的字符串，并返回新字符串的长度
+	if obj == nil {
+		newObj := core.CreateString(appendValue)
+		db.SetKey(key, newObj)
+		io.SendReplyToClient(client, resp3.NewNumberValue(int64(len(appendValue))))
+		return
+	}
+
+	// 追加字符串
+	str, err := obj.GetString()
+	newValue := str + appendValue
+	newObj := core.CreateString(newValue)
+	db.SetKey(key, newObj)
+
+	// 返回追加后的字符串长度
+	io.SendReplyToClient(client, resp3.NewNumberValue(int64(len(newValue))))
 	return
 }
 
