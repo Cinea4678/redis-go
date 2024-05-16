@@ -27,12 +27,25 @@ func LPush(client *core.RedisClient) (err error) {
 
 	if listObj := db.LookupKey(key); listObj == nil {
 		list = &core.List{}
-		db.DbAdd(key, core.CreateSet(set))
+		db.DbAdd(key, core.CreateList(list))
 	} else {
 		if listObj.Type != core.RedisList {
 			return errNotAList
 		}
-		list = setObj.Ptr.(*core.Set)
+		list = listObj.Ptr.(*core.List)
+	}
+
+	var countNew int64 = 0
+	for _, value := range values {
+		str := value.Str
+		obj := core.CreateString(str)
+		repeat, err := list.Add(obj)
+		if err != nil {
+			return err
+		}
+		if !repeat {
+			countNew++
+		}
 	}
 
 	// 打印req的信息

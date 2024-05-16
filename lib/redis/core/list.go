@@ -1,8 +1,6 @@
 package core
 
-import (
-	ziplist "redis-go/lib/redis/core/zip_list"
-)
+import "redis-go/lib/redis/core/zip_list"
 
 type List = ziplist.Ziplist
 
