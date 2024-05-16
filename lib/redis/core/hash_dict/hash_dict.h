@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 extern void goCallbackCharInt(uintptr_t h, char* p1, int p2);
 
 void* NewHashDict();

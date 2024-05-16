@@ -1,12 +1,13 @@
 package system
 
 import (
-	"github.com/cinea4678/resp3"
-	"github.com/emirpasic/gods/maps/linkedhashmap"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
 	"strconv"
 	"time"
+
+	"github.com/cinea4678/resp3"
+	"github.com/emirpasic/gods/maps/linkedhashmap"
 )
 
 // Ping Ping命令
@@ -56,7 +57,7 @@ func Echo(client *core.RedisClient) error {
 func Hello(client *core.RedisClient) error {
 	kv := linkedhashmap.New()
 	kv.Put(resp3.NewSimpleStringValue("server"), resp3.NewSimpleStringValue("redis-go-tj-sse"))
-	kv.Put(resp3.NewSimpleStringValue("version"), resp3.NewSimpleStringValue("1.0.0"))
+	kv.Put(resp3.NewSimpleStringValue("version"), resp3.NewSimpleStringValue("6.2.14"))
 	kv.Put(resp3.NewSimpleStringValue("proto"), resp3.NewNumberValue(int64(3)))
 	kv.Put(resp3.NewSimpleStringValue("id"), resp3.NewNumberValue(int64(client.Id)))
 	kv.Put(resp3.NewSimpleStringValue("mode"), resp3.NewSimpleStringValue("standalone"))

@@ -1,9 +1,6 @@
 package redis
 
 import (
-	"github.com/panjf2000/gnet/v2"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
@@ -12,6 +9,10 @@ import (
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
 	"strconv"
+
+	"github.com/panjf2000/gnet/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -28,6 +29,11 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, system.CommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
+
+	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, set.SetCommandInfoTable...)
+
 }
 
 // 初始化server
@@ -90,6 +96,7 @@ func initCommandDict() *core.Dict {
 // Start 启动服务器
 func Start() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	initServerConfig()
 	initServer()

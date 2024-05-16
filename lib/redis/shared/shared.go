@@ -1,8 +1,9 @@
 package shared
 
 import (
-	"github.com/cinea4678/resp3"
 	"redis-go/lib/redis/core"
+
+	"github.com/cinea4678/resp3"
 )
 
 var (
