@@ -1,12 +1,13 @@
 package io
 
 import (
-	"github.com/cinea4678/resp3"
-	"github.com/emirpasic/gods/maps/linkedhashmap"
-	"github.com/panjf2000/gnet/v2"
 	"log"
 	"math/big"
 	"redis-go/lib/redis/core"
+
+	"github.com/cinea4678/resp3"
+	"github.com/emirpasic/gods/maps/linkedhashmap"
+	"github.com/panjf2000/gnet/v2"
 )
 
 // AddReplyArray 向客户端发回一组值
@@ -55,7 +56,8 @@ func AddReplyString(client *core.RedisClient, str string) {
 func AddReplyObject(client *core.RedisClient, obj *core.Object) {
 	switch obj.Type {
 	case core.RedisString:
-		AddReplyString(client, *obj.Ptr.(*string))
+		str, _ := obj.GetString()
+		AddReplyString(client, str)
 	}
 }
 

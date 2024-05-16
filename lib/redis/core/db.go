@@ -58,6 +58,16 @@ func (r *RedisDb) doLookupKey(key string) *Object {
 	return nil
 }
 
+// 查找并删除
+// XXX: 其他操作比如expire是否也可以优化？而不是查询多次
+func (r *RedisDb) LookupKeyDel(key string) *Object {
+	entry := r.Dict.DictFindDel(key)
+	if entry != nil {
+		return entry.(*Object)
+	}
+	return nil
+}
+
 func (r *RedisDb) SetExpire(key string, expire int64) {
 	kde := r.Expires.DictFind(key)
 	if kde == nil {

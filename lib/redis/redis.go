@@ -30,6 +30,11 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, list.ListCommandTable...)
+
+	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, set.SetCommandInfoTable...)
+
 }
 
 // 初始化server
@@ -92,6 +97,7 @@ func initCommandDict() *core.Dict {
 // Start 启动服务器
 func Start() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	initServerConfig()
 	initServer()
