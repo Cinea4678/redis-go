@@ -126,3 +126,19 @@ func (zl *Ziplist) BlobLen() int {
 func (zl *Ziplist) Len() int {
 	return int(C.ZiplistLen(zl.ptr))
 }
+
+func (zn *ZiplistNode) isInteger() bool {
+	if val := zn.GetByteArray(); val == nil || len(val) == 0 {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (zn *ZiplistNode) isBytes() bool {
+	if val := zn.GetByteArray(); val == nil || len(val) == 0 {
+		return false
+	} else {
+		return true
+	}
+}

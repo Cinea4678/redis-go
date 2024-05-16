@@ -1,10 +1,10 @@
 package list
 
 import (
-	"fmt"
 	"github.com/cinea4678/resp3"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
+	"strconv"
 )
 
 /**
@@ -26,7 +26,7 @@ func LPush(client *core.RedisClient) (err error) {
 	var list *core.List
 
 	if listObj := db.LookupKey(key); listObj == nil {
-		list = &core.List{}
+		list = core.NewList()
 		db.DbAdd(key, core.CreateList(list))
 	} else {
 		if listObj.Type != core.RedisList {
@@ -35,23 +35,24 @@ func LPush(client *core.RedisClient) (err error) {
 		list = listObj.Ptr.(*core.List)
 	}
 
+	var pos = 1
 	var countNew int64 = 0
 	for _, value := range values {
 		str := value.Str
-		obj := core.CreateString(str)
-		repeat, err := list.Add(obj)
+		if num, err := strconv.Atoi(str); err == nil {
+			//fmt.Println(num)
+			list.InsertInteger(pos, int64(num))
+			countNew++
+		} else {
+			//fmt.Println(str)
+			list.InsertBytes(pos, []byte(str))
+			countNew++
+		}
 		if err != nil {
 			return err
 		}
-		if !repeat {
-			countNew++
-		}
 	}
-
-	// 打印req的信息
-	for i, elem := range req {
-		fmt.Printf("req[%d]: %s\n", i, elem.Str)
-	}
+	io.AddReplyNumber(client, countNew)
 	return
 }
 
@@ -217,8 +218,7 @@ func LIndex(client *core.RedisClient) (err error) {
 // https://redis.io/commands/commands/lrange/
 func LRange(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
-
-	if len(req) < 1 {
+	if len(req) < 2 {
 		return errNotEnoughArgs
 	}
 

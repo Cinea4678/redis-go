@@ -32,7 +32,7 @@ func TestZiplistPush(t *testing.T) {
 	}
 }
 
-// 测试插入操作
+// 测试插入操作和对整数还是字符串节点的判断
 func TestZiplistInsert(t *testing.T) {
 	zl := NewZiplist()
 	defer zl.DeleteByPos(1) // Assuming DeleteByPos correctly deletes the first node
@@ -50,6 +50,24 @@ func TestZiplistInsert(t *testing.T) {
 	if res := zl.InsertInteger(pos, testInt); res != 0 {
 		t.Errorf("InsertInteger returned non-zero result: %d", res)
 	}
+
+	//if node := zl.Index(2); node != nil {
+	//	if val := node.GetByteArray(); val == nil || len(val) == 0 {
+	//		fmt.Printf("GetInteger: %d\n", node.GetInteger())
+	//	} else {
+	//		fmt.Printf("GetStr: %s\n", string(val))
+	//	}
+	//} else {
+	//	t.Errorf("node is nil")
+	//}
+
+	// 判断某个节点是数字节点还是字符串节点的操作
+	if val := zl.Index(1); val.isBytes() {
+		fmt.Printf("GetStr: %s\n", string(val.GetByteArray()))
+	} else {
+		fmt.Printf("GetInteger: %d\n", val.GetInteger())
+	}
+
 }
 
 // 测试节点的查找和导航功能
