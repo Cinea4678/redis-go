@@ -10,8 +10,6 @@ var (
 	errNotAList        = errors.New("key not a list")
 	errInvalidIndex    = errors.New("invalid index")
 	errIndexOutOfRange = errors.New("index out of range")
-	errKeyNotFound     = errors.New("key not found")
-	errUnknown         = errors.New("unknown error")
 )
 
 var ListCommandTable = []*core.RedisCommand{
