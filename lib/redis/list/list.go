@@ -246,14 +246,22 @@ func LRange(client *core.RedisClient) (err error) {
 		list = listObj.Ptr.(*ziplist.Ziplist)
 	}
 
-	if start < 0 || stop < 0 || start > list.Len() || stop > list.Len() || start > stop {
+	if start < 0 || start > list.Len() || (start > stop && stop > 0) {
 		return errIndexOutOfRange
 	}
 
+	if stop > list.Len()-1 {
+		stop = list.Len() - 1
+	} else if stop < 0 {
+		stop = stop + list.Len()
+		if stop < 0 {
+			return errIndexOutOfRange
+		}
+	}
 	// Fetch the range of elements from the list
 	result := make([]*resp3.Value, 0)
 
-	for i := start; i <= stop; i++ {
+	for i := start + 1; i <= stop+1; i++ {
 		node := list.Index(i)
 		if node == nil {
 			break
