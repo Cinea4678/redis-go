@@ -1089,6 +1089,47 @@ ZipListResult ziplist::delete_(ziplist_node* cur) {
 }
 
 /**
+ * 指定节点的索引index(从1开始)，删除该节点
+ * 正确删除返回Ok，
+ * 错误情况返回Err：传入节点结构体cur值出错(content没有或value没有)
+ *          节点的值未找到
+*/
+ZipListResult ziplist::delete_by_index(int64_t index) {
+    size_t pos = this->locate_pos(index); //此处的pos是store的索引，从0开始
+    if (pos == LLONG_MAX || pos == 0) {
+        return Err;
+    }
+    size_t node_len = this->get_node_len(pos);
+    size_t prev_len = this->get_prev_length(pos);
+    bool flag = false;
+    if (pos == this->getZltail()) { //说明删除的是最后一个节点
+        flag = true;
+    }
+    if (this->delete_by_pos(pos) == Ok) {
+        this->setZllen(this->getZllen() - 1);
+        if (flag) {
+            //若前序节点长度也为0，说明删去后ziplist长度为0
+            if (prev_len == 0) {
+                this->setZltail(0x0A);
+            }
+            else {
+                this->setZltail(this->getZltail() - prev_len);
+            }
+        }
+        else {
+            this->setZltail(this->getZltail() - node_len);
+        }
+        this->chain_renew_for_delete(pos, prev_len);
+        this->setZlbytes(this->store.size());
+        return Ok;
+    }
+    else {
+        return Err;
+    }
+    return Ok;
+}
+
+/**
  * 当传入的pos >= store.size() || pos < 0时，返回Err
 */
 ZipListResult ziplist::delete_by_pos(size_t pos) {
