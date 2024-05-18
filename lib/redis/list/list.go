@@ -1,8 +1,10 @@
 package list
 
 import (
+	"errors"
 	"github.com/cinea4678/resp3"
 	"redis-go/lib/redis/core"
+	ziplist "redis-go/lib/redis/core/zip_list"
 	"redis-go/lib/redis/io"
 	"strconv"
 )
@@ -35,7 +37,7 @@ func LPush(client *core.RedisClient) (err error) {
 		list = listObj.Ptr.(*core.List)
 	}
 
-	var pos = 1
+	var pos = 0
 	var countNew int64 = 0
 	for _, value := range values {
 		str := value.Str
@@ -218,22 +220,53 @@ func LIndex(client *core.RedisClient) (err error) {
 // https://redis.io/commands/commands/lrange/
 func LRange(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
-	if len(req) < 2 {
+	if len(req) < 3 {
 		return errNotEnoughArgs
 	}
 
 	db := client.Db
 	key := req[0].Str
-	if setObj := db.LookupKey(key); setObj == nil {
-		io.AddReplyNumber(client, 0)
+	start, err := strconv.Atoi(req[1].Str)
+	if err != nil {
+		return errInvalidIndex
+	}
+	stop, err := strconv.Atoi(req[2].Str)
+	if err != nil {
+		return errInvalidIndex
+	}
+
+	var list *ziplist.Ziplist
+
+	if listObj := db.LookupKey(key); listObj == nil {
+		return errors.New("no such key")
 	} else {
-		if setObj.Type != core.RedisSet {
+		if listObj.Type != core.RedisList {
 			return errNotAList
 		}
-		set := setObj.Ptr.(*core.Set)
-
-		size := set.Size()
-		io.AddReplyNumber(client, int64(size))
+		list = listObj.Ptr.(*ziplist.Ziplist)
 	}
+
+	if start < 0 || stop < 0 || start > list.Len() || stop > list.Len() || start > stop {
+		return errIndexOutOfRange
+	}
+
+	// Fetch the range of elements from the list
+	result := make([]*resp3.Value, 0)
+
+	for i := start; i <= stop; i++ {
+		node := list.Index(i)
+		if node == nil {
+			break
+		}
+		if node.IsInteger() {
+			result = append(result, resp3.NewSimpleStringValue(strconv.Itoa(int(node.GetInteger()))))
+		} else {
+			result = append(result, resp3.NewSimpleStringValue(string(node.GetByteArray())))
+		}
+	}
+
+	// Add the range result to the client's response
+	io.AddReplyArray(client, result)
+
 	return
 }
