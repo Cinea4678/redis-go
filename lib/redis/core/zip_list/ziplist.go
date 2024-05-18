@@ -127,7 +127,7 @@ func (zl *Ziplist) Len() int {
 	return int(C.ZiplistLen(zl.ptr))
 }
 
-func (zn *ZiplistNode) isInteger() bool {
+func (zn *ZiplistNode) IsInteger() bool {
 	if val := zn.GetByteArray(); val == nil || len(val) == 0 {
 		return true
 	} else {

@@ -6,8 +6,10 @@ import (
 )
 
 var (
-	errNotEnoughArgs = errors.New("not enough args")
-	errNotAList      = errors.New("key not a list")
+	errNotEnoughArgs   = errors.New("not enough args")
+	errNotAList        = errors.New("key not a list")
+	errInvalidIndex    = errors.New("invalid index")
+	errIndexOutOfRange = errors.New("index out of range")
 )
 
 var ListCommandTable = []*core.RedisCommand{
