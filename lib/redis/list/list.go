@@ -62,7 +62,6 @@ func LPush(client *core.RedisClient) (err error) {
 // https://redis.io/docs/latest/commands/lpush/
 func RPush(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
-
 	if len(req) < 2 {
 		return errNotEnoughArgs
 	}
@@ -71,31 +70,31 @@ func RPush(client *core.RedisClient) (err error) {
 	key := req[0].Str
 	values := req[1:]
 
-	var set *core.Set
+	var list *core.List
 
-	if setObj := db.LookupKey(key); setObj == nil {
-		set = &core.Set{}
-		db.DbAdd(key, core.CreateSet(set))
+	if listObj := db.LookupKey(key); listObj == nil {
+		list = core.NewList()
+		db.DbAdd(key, core.CreateList(list))
 	} else {
-		if setObj.Type != core.RedisSet {
+		if listObj.Type != core.RedisList {
 			return errNotAList
 		}
-		set = setObj.Ptr.(*core.Set)
+		list = listObj.Ptr.(*core.List)
 	}
-
 	var countNew int64 = 0
 	for _, value := range values {
 		str := value.Str
-		obj := core.CreateString(str)
-		repeat, err := set.Add(obj)
+		if num, err := strconv.Atoi(str); err == nil {
+			list.PushInteger(int64(num))
+			countNew++
+		} else {
+			list.PushBytes([]byte(str))
+			countNew++
+		}
 		if err != nil {
 			return err
 		}
-		if !repeat {
-			countNew++
-		}
 	}
-
 	io.AddReplyNumber(client, countNew)
 	return
 }
