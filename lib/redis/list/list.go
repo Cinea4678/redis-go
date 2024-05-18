@@ -295,7 +295,8 @@ func LRange(client *core.RedisClient) (err error) {
 	var list *ziplist.Ziplist
 
 	if listObj := db.LookupKey(key); listObj == nil {
-		return errors.New("no such key")
+		io.AddReplyArray(client, []*resp3.Value{})
+		return
 	} else {
 		if listObj.Type != core.RedisList {
 			return errNotAList
