@@ -323,7 +323,7 @@ ZipListResult ziplist::mem2zlnode(size_t pos, ziplist_node*& zp) {
         zp->encoding = (uint8_t)store[p];
         uint8_t encoding = store[p];
         p += 1;
-        if (encoding & ZIP_INT_4b == ZIP_INT_4b) {
+        if ((encoding & ZIP_INT_4b) == ZIP_INT_4b) {
             //整数为0-12，content长度为1，只有低4位是有效的
             zp->value = encoding & 0x0F;
             zp->ba_length = 0;
