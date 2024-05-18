@@ -135,7 +135,7 @@ func (zn *ZiplistNode) IsInteger() bool {
 	}
 }
 
-func (zn *ZiplistNode) isBytes() bool {
+func (zn *ZiplistNode) IsBytes() bool {
 	if val := zn.GetByteArray(); val == nil || len(val) == 0 {
 		return false
 	} else {

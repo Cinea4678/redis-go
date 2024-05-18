@@ -63,7 +63,7 @@ func TestZiplistInsert(t *testing.T) {
 	//}
 
 	// 判断某个节点是数字节点还是字符串节点的操作
-	if val := zl.Index(1); val.isBytes() {
+	if val := zl.Index(1); val.IsBytes() {
 		fmt.Printf("GetStr: %s\n", string(val.GetByteArray()))
 	} else {
 		fmt.Printf("GetInteger: %d\n", val.GetInteger())
@@ -125,7 +125,7 @@ func TestZiplistLengths(t *testing.T) {
 
 	//fmt.Println(zl.Len())
 
-	if val := zl.Index(1); val.isBytes() {
+	if val := zl.Index(1); val.IsBytes() {
 		fmt.Printf("GetStr: %s\n", string(val.GetByteArray()))
 	} else {
 		fmt.Printf("GetInteger: %d\n", val.GetInteger())
@@ -139,7 +139,7 @@ func TestZiplistLengths(t *testing.T) {
 		if node == nil {
 			break
 		}
-		if node.isInteger() {
+		if node.IsInteger() {
 			// 输出格式化的整数内容，包括序号和内容
 			fmt.Printf("%d: %s\n", i, strconv.Itoa(int(node.GetInteger())))
 		} else {
