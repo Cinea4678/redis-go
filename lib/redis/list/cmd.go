@@ -7,6 +7,7 @@ import (
 
 var (
 	errNotEnoughArgs   = errors.New("not enough args")
+	errTooManyArgs     = errors.New("too many arguments")
 	errNotAList        = errors.New("key not a list")
 	errInvalidIndex    = errors.New("invalid index")
 	errIndexOutOfRange = errors.New("index out of range")

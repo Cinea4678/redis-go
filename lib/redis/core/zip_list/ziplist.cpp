@@ -230,6 +230,7 @@ public:
      * 通过传入的参数pos来
     */
     ZipListResult delete_by_pos(size_t pos);
+    ZipListResult delete_by_index(int64_t pos);
 
     /**
      * 连锁更新，从ziplist的第pos个（pos从1开始）之后（不包括pos节点）开始连锁更新
@@ -243,7 +244,7 @@ public:
 
 void ziplist::int2uint8(uint16_t num) {
     for (size_t i = 0; i < sizeof(uint16_t); ++i) {
-        // 按字节添加到store中，考虑小端字节序
+         // 按字节添加到store中，考虑小端字节序
         this->store.push_back(reinterpret_cast<uint8_t*>(&num)[i]);
     }
 }
@@ -1711,7 +1712,7 @@ int ZiplistDeleteRange(ZiplistHandle handle, ZiplistNodeHandle startNodeHandle, 
 }
 
 int ZiplistDeleteByPos(ZiplistHandle handle, size_t pos) {
-    return static_cast<ziplist*>(handle)->delete_by_pos(pos);
+    return static_cast<ziplist*>(handle)->delete_by_index(pos);
 }
 
 int ZiplistBlobLen(ZiplistHandle handle) {

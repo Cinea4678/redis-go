@@ -104,40 +104,52 @@ func RPush(client *core.RedisClient) (err error) {
 func LPop(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 
-	if len(req) < 2 {
+	if len(req) < 1 {
 		return errNotEnoughArgs
+	}
+	if len(req) > 2 {
+		return errTooManyArgs
 	}
 
 	db := client.Db
 	key := req[0].Str
-	values := req[1:]
 
-	var set *core.Set
+	var list *core.List
 
-	if setObj := db.LookupKey(key); setObj == nil {
-		set = &core.Set{}
-		db.DbAdd(key, core.CreateSet(set))
+	if listObj := db.LookupKey(key); listObj == nil {
+		return errors.New("no such key")
 	} else {
-		if setObj.Type != core.RedisSet {
+		if listObj.Type != core.RedisList {
 			return errNotAList
 		}
-		set = setObj.Ptr.(*core.Set)
+		list = listObj.Ptr.(*ziplist.Ziplist)
 	}
+	result := make([]*resp3.Value, 0)
 
-	var countNew int64 = 0
-	for _, value := range values {
-		str := value.Str
-		obj := core.CreateString(str)
-		repeat, err := set.Add(obj)
+	rmIndex := 1
+	count := 1
+	if len(req) == 2 {
+		count, err = strconv.Atoi(req[1].Str)
 		if err != nil {
-			return err
+			return errInvalidIndex
 		}
-		if !repeat {
-			countNew++
+		if count < 0 {
+			return errIndexOutOfRange
 		}
 	}
-
-	io.AddReplyNumber(client, countNew)
+	for i := 0; i < count; i++ {
+		node := list.Index(rmIndex)
+		if node == nil {
+			return
+		}
+		if node.IsInteger() {
+			result = append(result, resp3.NewSimpleStringValue(strconv.Itoa(int(node.GetInteger()))))
+		} else {
+			result = append(result, resp3.NewSimpleStringValue(string(node.GetByteArray())))
+		}
+		list.DeleteByPos(rmIndex)
+	}
+	io.AddReplyArray(client, result)
 	return
 }
 
@@ -146,40 +158,53 @@ func LPop(client *core.RedisClient) (err error) {
 func RPop(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 
-	if len(req) < 2 {
+	if len(req) < 1 {
 		return errNotEnoughArgs
+	}
+	if len(req) > 2 {
+		return errTooManyArgs
 	}
 
 	db := client.Db
 	key := req[0].Str
-	values := req[1:]
 
-	var set *core.Set
+	var list *core.List
 
-	if setObj := db.LookupKey(key); setObj == nil {
-		set = &core.Set{}
-		db.DbAdd(key, core.CreateSet(set))
+	if listObj := db.LookupKey(key); listObj == nil {
+		return errors.New("no such key")
 	} else {
-		if setObj.Type != core.RedisSet {
+		if listObj.Type != core.RedisList {
 			return errNotAList
 		}
-		set = setObj.Ptr.(*core.Set)
+		list = listObj.Ptr.(*ziplist.Ziplist)
 	}
+	result := make([]*resp3.Value, 0)
 
-	var countNew int64 = 0
-	for _, value := range values {
-		str := value.Str
-		obj := core.CreateString(str)
-		repeat, err := set.Add(obj)
+	rmIndex := list.Len()
+	count := 1
+	if len(req) == 2 {
+		count, err = strconv.Atoi(req[1].Str)
 		if err != nil {
-			return err
+			return errInvalidIndex
 		}
-		if !repeat {
-			countNew++
+		if count < 0 {
+			return errIndexOutOfRange
 		}
 	}
-
-	io.AddReplyNumber(client, countNew)
+	for i := 0; i < count; i++ {
+		rmIndex = list.Len()
+		node := list.Index(rmIndex)
+		if node == nil {
+			return
+		}
+		if node.IsInteger() {
+			result = append(result, resp3.NewSimpleStringValue(strconv.Itoa(int(node.GetInteger()))))
+		} else {
+			result = append(result, resp3.NewSimpleStringValue(string(node.GetByteArray())))
+		}
+		list.DeleteByPos(rmIndex)
+	}
+	io.AddReplyArray(client, result)
 	return
 }
 
@@ -188,29 +213,58 @@ func RPop(client *core.RedisClient) (err error) {
 // https://redis.io/commands/commands/lindex/
 func LIndex(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
-
-	if len(req) < 1 {
+	if len(req) < 2 {
 		return errNotEnoughArgs
+	}
+
+	if len(req) > 2 {
+		return errTooManyArgs
 	}
 
 	db := client.Db
 	key := req[0].Str
-	if setObj := db.LookupKey(key); setObj == nil {
-		io.AddReplyArray(client, []*resp3.Value{})
+	idx, err := strconv.Atoi(req[1].Str)
+	if err != nil {
+		return errInvalidIndex
+	}
+
+	var list *ziplist.Ziplist
+
+	if listObj := db.LookupKey(key); listObj == nil {
+		return errors.New("no such key")
 	} else {
-		if setObj.Type != core.RedisSet {
+		if listObj.Type != core.RedisList {
 			return errNotAList
 		}
-		set := setObj.Ptr.(*core.Set)
-
-		size := set.Size()
-		res := make([]*resp3.Value, 0, size)
-		set.ForEach(func(obj *core.Object) {
-			str, _ := obj.GetString()
-			res = append(res, resp3.NewSimpleStringValue(str))
-		})
-		io.AddReplyArray(client, res)
+		list = listObj.Ptr.(*ziplist.Ziplist)
 	}
+
+	// Fetch the range of elements from the list
+	result := ""
+
+	if idx >= 0 {
+		idx++
+	} else {
+		idx = list.Len() + 1 + idx
+	}
+
+	if idx > list.Len() || idx < 1 {
+		return errIndexOutOfRange
+	}
+
+	node := list.Index(idx)
+	if node == nil {
+		return
+	}
+	if node.IsInteger() {
+		result = strconv.Itoa(int(node.GetInteger()))
+	} else {
+		result = string(node.GetByteArray())
+	}
+
+	// Add the range result to the client's response
+	io.AddReplyString(client, result)
+
 	return
 }
 
@@ -221,6 +275,10 @@ func LRange(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 	if len(req) < 3 {
 		return errNotEnoughArgs
+	}
+
+	if len(req) > 3 {
+		return errTooManyArgs
 	}
 
 	db := client.Db
