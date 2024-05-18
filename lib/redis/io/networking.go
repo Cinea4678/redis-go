@@ -2,13 +2,14 @@ package io
 
 import (
 	"errors"
-	"github.com/cinea4678/resp3"
-	"github.com/panjf2000/gnet/v2"
-	"github.com/rs/zerolog/log"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/shared"
 	"runtime"
 	"strconv"
+
+	"github.com/cinea4678/resp3"
+	"github.com/panjf2000/gnet/v2"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -67,7 +68,8 @@ func DataHandler(c gnet.Conn) (action gnet.Action) {
 
 	// 将数据设置到client中
 	frame, _ := c.Next(-1)
-	value, err := resp3.FromString(string(frame))
+	client.RawReq = string(frame)
+	value, err := resp3.FromString(client.RawReq)
 	if err != nil {
 		AddReplyError(client, err)
 		return gnet.Close
