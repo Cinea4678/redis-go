@@ -35,7 +35,7 @@ func LPush(client *core.RedisClient) (err error) {
 		list = listObj.Ptr.(*core.List)
 	}
 
-	var pos = 1
+	var pos = 0
 	var countNew int64 = 0
 	for _, value := range values {
 		str := value.Str

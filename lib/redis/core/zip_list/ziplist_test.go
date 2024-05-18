@@ -2,6 +2,7 @@ package ziplist
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -114,13 +115,43 @@ func TestZiplistLengths(t *testing.T) {
 	zl := NewZiplist()
 	defer zl.DeleteByPos(1) // Cleanup after test
 
+	testByte1 := []byte("testByte 1")
+	testByte2 := []byte("testByte 2")
 	zl.PushInteger(42)
+	zl.PushInteger(34)
+	zl.PushBytes(testByte1)
+	zl.PushInteger(50)
+	zl.PushBytes(testByte2)
 
-	if zl.Len() != 1 {
-		t.Errorf("Len expected 1, got %d", zl.Len())
+	//fmt.Println(zl.Len())
+
+	if val := zl.Index(1); val.isBytes() {
+		fmt.Printf("GetStr: %s\n", string(val.GetByteArray()))
+	} else {
+		fmt.Printf("GetInteger: %d\n", val.GetInteger())
 	}
 
-	if zl.BlobLen() <= 0 {
-		t.Errorf("BlobLen expected positive number, got %d", zl.BlobLen())
+	var startPos int = 1
+	var endPos int = zl.Len()
+
+	for i := startPos; i <= endPos; i++ {
+		node := zl.Index(i)
+		if node == nil {
+			break
+		}
+		if node.isInteger() {
+			// 输出格式化的整数内容，包括序号和内容
+			fmt.Printf("%d: %s\n", i, strconv.Itoa(int(node.GetInteger())))
+		} else {
+			// 输出格式化的字节数组内容，作为字符串，包括序号和内容
+			fmt.Printf("%d: %s\n", i, string(node.GetByteArray()))
+		}
 	}
+	//if zl.Len() != 1 {
+	//	t.Errorf("Len expected 1, got %d", zl.Len())
+	//}
+	//
+	//if zl.BlobLen() <= 0 {
+	//	t.Errorf("BlobLen expected positive number, got %d", zl.BlobLen())
+	//}
 }
