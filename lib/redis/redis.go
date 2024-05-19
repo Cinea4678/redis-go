@@ -50,8 +50,6 @@ func initServer() {
 	//}
 
 	// 初始化插件系统
-	core.InitWasmRuntime()
-	core.InitWasmPlugins()
 
 	shared.Server.Commands = initCommandDict()
 
@@ -66,23 +64,6 @@ func initServer() {
 
 func initCommandDict() *core.Dict {
 	d := core.NewDict()
-	for _, plugin := range core.Plugins {
-		for _, cmdName := range plugin.Commands {
-			cmd := core.RedisCommand{
-				Name: cmdName,
-				RedisClientFunc: func(client *core.RedisClient) error {
-					resp, err := core.ExtensionHandleRequest(client, &plugin)
-					if err != nil {
-						return err
-					} else {
-						io.SendRawReplyToClient(client, []byte(resp))
-						return nil
-					}
-				},
-			}
-			d.DictInsertOrUpdate(cmd.Name, cmd)
-		}
-	}
 	for _, cmd := range io.RedisCommandTable {
 		d.DictInsertOrUpdate(cmd.Name, cmd)
 	}

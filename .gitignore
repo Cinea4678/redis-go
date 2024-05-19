@@ -4,4 +4,4 @@
 .clang-format
 .gitignore
 *.exe
-./main
+main
