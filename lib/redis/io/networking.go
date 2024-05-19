@@ -31,7 +31,7 @@ func createClient(c gnet.Conn) *core.RedisClient {
 	return &core.RedisClient{
 		Id:   c.Context().(int),
 		Conn: c,
-		Db:   shared.Server.Db,
+		Db:   shared.Server.Db[0],
 	}
 }
 

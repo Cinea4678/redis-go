@@ -15,6 +15,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/otiai10/copy v1.14.0 // indirect
 	github.com/thoas/go-funk v0.9.3 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
