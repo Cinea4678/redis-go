@@ -41,7 +41,7 @@ public:
     // 移除元素，返回对应value
     vector<ZSetType> remove(double score);
     // 按值移除，若不存在则返回false
-    bool remove(double score, ZSetType value);
+    double remove(ZSetType value);
     // 查找元素
     vector<ZSetType> search(double score);
     // 如果l大于r，则反向输出
@@ -88,15 +88,17 @@ vector<ZSetType> zset::remove(double score) {
     return result;
 }
 
-bool zset::remove(double score, ZSetType value) {
-    // value不存在则返回false
+double zset::remove(ZSetType value) {
+    // value不存在则返回ZSetNotFound
     auto it = map.find(value);
     if (it == map.end()) {
-        return false;
+        return ZSetNotFound;
     }
 
+    bool result = list.remove(it->second, value);
     map.erase(it);
-    return true;
+    // 返回对应的score
+    return it->second;
 }
 
 vector<ZSetType> zset::search(double score) {
@@ -152,6 +154,23 @@ int DictLen(void* zs) {
 
 double ZSetAdd(void* zs, double score, ZSetType value) {
     return static_cast<zset*>(zs)->add(score, value);
+}
+
+void* ZSetRemoveScore(void* zs, double score) {
+    // 使用c风格
+    // 新分配了一块内存，用于存储返回给go的数组（否则返回局部变量被清理掉到那边就是空的）
+    // TODO: go那边用完需要调用C.free释放
+    vector<ZSetType> v = static_cast<zset*>(zs)->remove(score);
+    ZSetType* res = (ZSetType*)malloc(v.size() * sizeof(ZSetType));
+    res = &v[0];
+    return static_cast<void*>(res);
+
+    // 这里返回了临时变量数组的地址，内存管理可能会有问题
+    // return static_cast<void*>(static_cast<zset*>(zs)->remove(score));
+}
+
+double ZSetRemoveValue(void* zs, ZSetType value) {
+    return (static_cast<zset*>(zs)->remove(value));
 }
 
 double ZSetNotFoundSign() {

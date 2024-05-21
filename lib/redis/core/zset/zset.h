@@ -1,3 +1,5 @@
+#include <stdint.h>
+typedef uint32_t ZSetType;
 extern const double ZSetNotFound;
 extern const double ZSetSuccess;
 
@@ -7,13 +9,13 @@ int ReleaseZSet(void* zs);
 
 int ZSetLen(void* zs);
 
-double ZSetGetScore(void* zs, int value);
+double ZSetGetScore(void* zs, ZSetType value);
 
-double ZSetAdd(void* zs, double score, int value);
+double ZSetAdd(void* zs, double score, ZSetType value);
 
-void* ZSetRemove(void* zs, double score);
+void* ZSetRemoveScore(void* zs, double score);
 
-int ZSetRemoveByValue(void* hd, double score);
+double ZSetRemoveValue(void* zs, ZSetType value);
 
 double ZSetSearch(void* zs, double lscore, double rscore, int* count);
 
