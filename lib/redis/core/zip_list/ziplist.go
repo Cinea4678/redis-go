@@ -51,6 +51,10 @@ func (zl *Ziplist) InsertBytes(pos int, bytes []byte) int {
 }
 
 func (zl *Ziplist) Index(index int) *ZiplistNode {
+	zlLen := zl.Len()
+	if index > zlLen {
+		return nil
+	}
 	nodePtr := C.ZiplistIndex(zl.ptr, C.int(index))
 	if nodePtr == nil {
 		return nil
