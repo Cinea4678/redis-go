@@ -64,11 +64,11 @@ func AddReplyObject(client *core.RedisClient, obj *core.Object) {
 // SendReplyToClient 向客户端发送一个已经构造为resp3.Value的值
 func SendReplyToClient(client *core.RedisClient, value *resp3.Value) {
 	s := value.ToRESP3String()
-	sendRawReplyToClient(client, []byte(s))
+	SendRawReplyToClient(client, []byte(s))
 }
 
 // 向客户端发送原始的字节
-func sendRawReplyToClient(client *core.RedisClient, bytes []byte) {
+func SendRawReplyToClient(client *core.RedisClient, bytes []byte) {
 	err := client.Conn.AsyncWrite(bytes, func(c gnet.Conn, err error) error { return err })
 	if err != nil {
 		log.Printf("err: %v", err)

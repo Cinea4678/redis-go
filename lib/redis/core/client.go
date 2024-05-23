@@ -14,6 +14,7 @@ type RedisClient struct {
 	Cmd     *RedisCommand // 当前执行的命令
 	LastCmd *RedisCommand // 最后执行的命令
 
+	RawReq   string       // 从客户端收到的原始请求
 	ReqValue *resp3.Value // 从客户端收到的请求
 
 	Flags int //处理标记
