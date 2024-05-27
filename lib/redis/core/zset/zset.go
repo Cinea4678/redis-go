@@ -51,6 +51,8 @@ func NewZSet() *ZSet {
 		C.ReleaseZSet(zs.ptr)
 	})
 
+	zset.v2i = make(map[string]int)
+
 	return zset
 }
 
@@ -63,25 +65,38 @@ func (zs *ZSet) ZSetGetScore(value string) (float64, error) {
 	// return score, nil
 	index, ok := zs.v2i[value]
 	if !ok {
-		return ZSetNotFound, errors.New("Can't get score, value not found")
+		return ZSetNotFound, errors.New("[zs.ZSetGetScore] can't get score, value not found")
 	}
 	return zs.objs[index].score, nil
 }
 
-func (zs *ZSet) ZSetAdd(score float64, value string) float64 {
-	pos := len(zs.objs)
+// bool返回true表示已存在
+func (zs *ZSet) ZSetAdd(score float64, value string) (float64, bool) {
+	s, _ := zs.ZSetGetScore(value)
+	// 已存在
+	if s != ZSetNotFound {
+		return s, true
+	}
+
+	// 不存在
 	length := len(zs.availablePose)
 	if length > 0 {
-		pos = zs.availablePose[length-1]
+		pos := zs.availablePose[length-1]
 		zs.objs[pos] = ZNode{score, value}
 		zs.v2i[value] = pos
 		zs.availablePose = zs.availablePose[:length-1]
+		// fmt.Println("zs.objs[", pos, "]", "={", score, value, "}")
+		// fmt.Println("zs.v2i[", value, "]", "={", pos, "}")
+		// fmt.Println("zs.availablePose", zs.availablePose)
 	} else {
+		// fmt.Println("add")
+		pos := len(zs.objs)
+		zs.v2i[value] = pos
+		// fmt.Println("zs.v2i[", value, "]", "={", pos, "}")
 		zs.objs = append(zs.objs, ZNode{score, value})
 	}
 
-	// XXX: int转uint应该没事？
-	return float64(C.ZSetAdd(zs.ptr, C.double(score), C.uint(pos)))
+	return score, false
 }
 
 func (zs *ZSet) ZSetRemoveValue(value string) int {
@@ -90,31 +105,83 @@ func (zs *ZSet) ZSetRemoveValue(value string) int {
 		zs.objs[pos].score = ZSetNotFound
 		zs.objs[pos].value = ""
 		zs.availablePose = append(zs.availablePose, pos)
-		zs.v2i[value] = -1
+		delete(zs.v2i, value)
 		return ZSetOk
 	} else {
 		return ZSetErr
 	}
 }
 
-func (zs *ZSet) ZSetRemoveScore(score float64) {
-	arrPtr := C.ZSetRemoveScore(zs.ptr, C.double(score))
-	// TODO: 这里的长度如何获取？
-	slice := (*[1 << 30]uint32)(unsafe.Pointer(arrPtr))[:length:length]
+func (zs *ZSet) ZSetRemoveScore(score float64) int {
+	var cLen C.int
+	// 指针传长度，函数返回值数组
+	arrPtr := C.ZSetRemoveScore(zs.ptr, C.double(score), &cLen)
+	length := int(cLen)
+	slice := (*[1 << 30]int)(unsafe.Pointer(arrPtr))[:length:length]
 
 	for pos := range slice {
 		if pos >= 0 {
 			zs.objs[pos].score = ZSetNotFound
 			zs.objs[pos].value = ""
 			zs.availablePose = append(zs.availablePose, pos)
-			zs.v2i[value] = -1
-			return ZSetOk
+			delete(zs.v2i, zs.objs[pos].value)
 		} else {
+			// 虽然这样写不能保证原子性
 			return ZSetErr
 		}
 	}
+	return ZSetOk
 }
 
-func (zs *ZSet) ZSetSearch(value string) {
+// 只返回value索引不返回score
+func (zs *ZSet) ZSetSearch(score float64) []int {
+	var cLen C.int
+	// 指针传长度，函数返回值数组
+	arrPtr := C.ZSetSearch(zs.ptr, C.double(score), &cLen)
+	length := int(cLen)
+	slice := (*[1 << 30]int)(unsafe.Pointer(arrPtr))[:length:length]
+	return slice
+}
 
+func (zs *ZSet) ZSetSearchRange(lscore, rscore float64) []ZNode {
+	var cLen C.int
+	// 指针传长度，函数返回值数组
+	arrPtr := C.ZSetSearchRange(zs.ptr, C.double(lscore), C.double(rscore), &cLen)
+	length := int(cLen)
+	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
+	return slice
+}
+
+func (zs *ZSet) ZSetUpdate(newscore float64, value string) (float64, error) {
+	score, err := zs.ZSetGetScore(value)
+	if err != nil {
+		return ZSetNotFound, errors.New("[zs.ZSetUpdate] can't get score, value not found")
+	}
+
+	// 更新实际就是移除再插入
+	status := zs.ZSetRemoveValue(value)
+	if status == ZSetErr {
+		return score, errors.New("[zs.ZSetUpdate] remove err")
+	}
+
+	zs.ZSetAdd(newscore, value)
+
+	return score, nil
+}
+
+func (zs *ZSet) ZSetSearchRank(rank int) (value string, score float64, err error) {
+	index := int(C.ZSetSearchRank(zs.ptr, C.int(rank)))
+	if index == -1 {
+		return "", ZSetNotFound, errors.New("[zs.ZSetSearchRank] not found")
+	}
+	return value, zs.objs[index].score, nil
+}
+
+func (zs *ZSet) ZSetSearchRankRange(lrank, rrank int) []ZNode {
+	var cLen C.int
+	// 指针传长度，函数返回值数组
+	arrPtr := C.ZSetSearchRankRange(zs.ptr, C.int(lrank), C.int(rrank), &cLen)
+	length := int(cLen)
+	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
+	return slice
 }

@@ -22,8 +22,12 @@ const double ZSetSuccess = numeric_limits<double>::max();
 class zset {
 
 public:
-    zset();
-    ~zset();
+    zset(){
+
+    };
+    ~zset(){
+
+    };
 
     // 获取对应元素的score
     double getScore(ZSetType value) const {
@@ -50,7 +54,8 @@ public:
     vector<ZSetType> searchValue(ZSetType value);
     // 按排名查找(负数代表倒数，同score按照插入先后排序)
     // 返回score，value对
-    pair<double, ZSetType> searchRank(int rank);
+    // pair<double, ZSetType> searchRank(int rank);
+    ZSetType searchRank(int rank);
     // 按排名范围查找(允许l<=0或r>length)
     // 返回score，value对的vector
     vector<pair<double, ZSetType>> searchRankRange(int lrank, int rrank);
@@ -126,12 +131,20 @@ vector<ZSetType> zset::searchValue(ZSetType value) {
     return vector<ZSetType>(0);
 };
 
-pair<double, ZSetType> zset::searchRank(int rank) {
+// pair<double, ZSetType> zset::searchRank(int rank) {
+//     auto result = list.searchRank(rank);
+//     if (result.first == SkipListNotFound) {
+//         return {ZSetNotFound, -1};
+//     }
+//     return result;
+// }
+
+ZSetType zset::searchRank(int rank) {
     auto result = list.searchRank(rank);
     if (result.first == SkipListNotFound) {
-        return {ZSetNotFound, 0};
+        return -1;
     }
-    return result;
+    return result.second;
 }
 
 vector<pair<double, ZSetType>> zset::searchRankRange(int lrank, int rrank) {
@@ -156,13 +169,14 @@ double ZSetAdd(void* zs, double score, ZSetType value) {
     return static_cast<zset*>(zs)->add(score, value);
 }
 
-void* ZSetRemoveScore(void* zs, double score) {
+void* ZSetRemoveScore(void* zs, double score, int* length) {
     // 使用c风格
     // 新分配了一块内存，用于存储返回给go的数组（否则返回局部变量被清理掉到那边就是空的）
     // TODO: go那边用完需要调用C.free释放
     vector<ZSetType> v = static_cast<zset*>(zs)->remove(score);
     ZSetType* res = (ZSetType*)malloc(v.size() * sizeof(ZSetType));
     res = &v[0];
+    *length = v.size();
     return static_cast<void*>(res);
 
     // 这里返回了临时变量数组的地址，内存管理可能会有问题
@@ -171,6 +185,39 @@ void* ZSetRemoveScore(void* zs, double score) {
 
 double ZSetRemoveValue(void* zs, ZSetType value) {
     return (static_cast<zset*>(zs)->remove(value));
+}
+
+void* ZSetSearch(void* zs, double score, int* length) {
+    vector<ZSetType> v = static_cast<zset*>(zs)->search(score);
+    ZSetType* res = (ZSetType*)malloc(v.size() * sizeof(ZSetType));
+    res = &v[0];
+    *length = v.size();
+    return static_cast<void*>(res);
+}
+
+void* ZSetSearchRange(void* zs, double lscore, double rscore, int* length) {
+    // 这里的pair对应go端的ZNode
+    vector<pair<double, ZSetType>> v =
+        static_cast<zset*>(zs)->searchRange(lscore, rscore);
+    pair<double, ZSetType>* res =
+        (pair<double, ZSetType>*)malloc(v.size() * sizeof(ZSetType));
+    res = &v[0];
+    *length = v.size();
+    return static_cast<void*>(res);
+}
+
+ZSetType ZSetSearchRank(void* zs, int rank) {
+    return (static_cast<zset*>(zs)->searchRank(rank));
+}
+
+void* ZSetSearchRankRange(void* zs, int lrank, int rrank, int* length) {
+    vector<pair<double, ZSetType>> v =
+        static_cast<zset*>(zs)->searchRankRange(lrank, rrank);
+    pair<double, ZSetType>* res =
+        (pair<double, ZSetType>*)malloc(v.size() * sizeof(ZSetType));
+    res = &v[0];
+    *length = v.size();
+    return static_cast<void*>(res);
 }
 
 double ZSetNotFoundSign() {
