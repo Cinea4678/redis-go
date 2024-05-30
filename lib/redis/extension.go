@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/shared"
+	"strings"
 	"sync"
 
 	jsoniter "github.com/json-iterator/go"
@@ -82,7 +83,9 @@ func loadPlugin(pluginRtDir string, wg *sync.WaitGroup) {
 
 	L := lua.NewState()
 
-	L.DoString(fmt.Sprintf("package.path = package.path .. ';%s/?.lua'", pluginRtDir))
+	dbg := fmt.Sprintf("package.path = '%s\\?.lua'", pluginRtDir)
+	dbg = strings.Replace(dbg, "\\", "\\\\", -1)
+	L.DoString(dbg)
 	pluginPath := filepath.Join(pluginRtDir, "plugin.lua")
 
 	L.PreloadModule("redisApi", shared.RedisApiLuaLoader)
@@ -121,7 +124,7 @@ func loadPlugin(pluginRtDir string, wg *sync.WaitGroup) {
 		LPool: &sync.Pool{
 			New: func() interface{} {
 				L := lua.NewState()
-				L.DoString(fmt.Sprintf("package.path = package.path .. ';%s/?.lua'", pluginRtDir))
+				L.DoString(dbg)
 				pluginPath := filepath.Join(pluginRtDir, "plugin.lua")
 				L.PreloadModule("redisApi", shared.RedisApiLuaLoader)
 				L.DoFile(pluginPath)
