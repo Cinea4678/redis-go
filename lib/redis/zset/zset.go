@@ -1,9 +1,24 @@
 package zset
 
 import (
+	"fmt"
 	"redis-go/lib/redis/core"
+	"redis-go/lib/redis/core/zset"
+	"redis-go/lib/redis/io"
+	"redis-go/lib/redis/shared"
+	"strconv"
+
+	"github.com/cinea4678/resp3"
 )
 
+type ZSet = zset.ZSet
+
+var (
+	ZSetOk  = zset.ZSetOk
+	ZSetErr = zset.ZSetErr
+)
+
+// ZAdd - Add one or more members to a sorted set, or update its score if it already exists
 func ZAdd(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 
@@ -11,34 +26,239 @@ func ZAdd(client *core.RedisClient) (err error) {
 		return errNotEnoughArgs
 	}
 
-	// key := req[0].Str
-	// appendValue := req[1].Str
+	// 例如ZAdd myzset 0.1 value1 0.2这种缺失了value值的
+	if len(req)%2 != 1 {
+		return errInvalidArgs
+	}
 
-	// db := client.Db
+	zsetKey := req[0].Str
 
-	// // 查找键对应的值
-	// obj := db.LookupKey(key)
+	db := client.Db
 
-	// // 如果键不存在，直接将值设置为给定的字符串，并返回新字符串的长度
-	// if obj == nil {
-	// 	newObj := core.CreateString(appendValue)
-	// 	db.SetKey(key, newObj)
-	// 	io.SendReplyToClient(client, resp3.NewNumberValue(int64(len(appendValue))))
-	// 	return
-	// }
+	var zs *zset.ZSet
 
-	// // 追加字符串
-	// str, err := obj.GetString()
-	// newValue := str + appendValue
-	// newObj := core.CreateString(newValue)
-	// db.SetKey(key, newObj)
+	// 如果默认ZSet没有创建
+	if zsetObj := db.LookupKey(zsetKey); zsetObj == nil {
+		zs = zset.NewZSet()
+		db.DbAdd(zsetKey, core.CreateZSet(zs))
+	} else {
+		zs = zsetObj.Ptr.(*zset.ZSet)
+	}
 
-	// // 返回追加后的字符串长度
-	// io.SendReplyToClient(client, resp3.NewNumberValue(int64(len(newValue))))
+	for i := 1; i < len(req); i += 2 {
+		score, err := strconv.ParseFloat(req[i].Str, 64)
+		if err != nil {
+			return errInvalidArgs
+		}
+
+		value := req[i+1].Str
+
+		fmt.Println(score, value)
+		_, exist := zs.ZSetGetScore(value)
+		if exist {
+			fmt.Println("ZSetUpdate")
+			zs.ZSetUpdate(score, value)
+		} else {
+			fmt.Println("ZSetAdd")
+			zs.ZSetAdd(score, value)
+		}
+
+		io.AddReplyDouble(client, score)
+	}
+
 	return
 }
 
-// value应该是什么类型？
-func doAdd(score float64, value string) {
+// ZCard - Get the number of members in a sorted set
+func ZCard(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
 
+	if len(req) < 1 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	zsetKey := req[0].Str
+
+	zsetObj := db.LookupKey(zsetKey)
+	if zsetObj == nil {
+		return errZSetNotFound
+	} else if zsetObj.Type != core.RedisZSet {
+		return errNotAZSet
+	}
+
+	zs := zsetObj.Ptr.(*zset.ZSet)
+	io.AddReplyNumber(client, int64(zs.Len()))
+
+	return
+}
+
+func ZCount(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 3 {
+		return errNotEnoughArgs
+	}
+	zsetKey := req[0].Str
+	minScore, err := strconv.ParseFloat(req[1].Str, 64)
+	if err != nil {
+		return errInvalidArgs
+	}
+	maxScore, err := strconv.ParseFloat(req[2].Str, 64)
+	if err != nil {
+		return errInvalidArgs
+	}
+
+	db := client.Db
+	zsetObj := db.LookupKey(zsetKey)
+	if zsetObj == nil {
+		io.AddReplyString(client, zsetKey+"not found")
+		return errZSetNotFound
+	}
+
+	zs := zsetObj.Ptr.(*zset.ZSet)
+	res := zs.ZSetSearchRange(minScore, maxScore)
+	count := len(res)
+	io.AddReplyNumber(client, int64(count))
+	return
+}
+
+func ZIncrBy(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+	if len(req) < 3 {
+		return errNotEnoughArgs
+	}
+
+	key := req[0].Str
+	increment := req[1].Double
+	member := req[2].Str
+	db := client.Db
+
+	zsetObj := db.LookupKey(key)
+
+	if zsetObj == nil {
+		zset := zset.NewZSet()
+		db.DbAdd(key, core.CreateZSet(zset))
+		zset.ZSetAdd(increment, member)
+		io.AddReplyDouble(client, increment)
+	} else if zsetObj.Type != core.RedisZSet {
+		return errNotAZSet
+	}
+
+	zs := zsetObj.Ptr.(*ZSet)
+	oldScore, exists := zs.ZSetGetScore(member)
+	if exists {
+		newScore := oldScore + increment
+		zs.ZSetUpdate(newScore, member) // 更新分数
+		io.AddReplyDouble(client, newScore)
+	} else {
+		io.AddReplyDouble(client, increment)
+	}
+
+	return
+}
+
+// ZRange - 通过索引区间获取成员
+// 负值代表倒数(例如-1代表倒数第一个)
+func ZRange(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 3 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	zsetKey := req[0].Str
+
+	start, err := strconv.Atoi(req[1].Str)
+	if err != nil {
+		return err
+	}
+	stop, err := strconv.Atoi(req[2].Str)
+	if err != nil {
+		return err
+	}
+
+	zsetObj := db.LookupKey(zsetKey)
+	if zsetObj == nil {
+		io.AddReplyArray(client, []*resp3.Value{})
+		return
+	}
+
+	zs := zsetObj.Ptr.(*ZSet)
+	members := zs.ZSetSearchRankRange(start, stop)
+	results := make([]*resp3.Value, len(members))
+	for i, member := range members {
+		results[i] = resp3.NewSimpleStringValue(member.Value)
+	}
+	io.AddReplyArray(client, results)
+
+	return
+}
+
+// ZRem - Remove one or more members from a sorted set
+func ZRem(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 2 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	zsetKey := req[0].Str
+	members := req[1:]
+
+	zsetObj := db.LookupKey(zsetKey)
+	if zsetObj == nil {
+		io.AddReplyString(client, zsetKey+"not found")
+		return errZSetNotFound
+	} else if zsetObj.Type != core.RedisZSet {
+		return errNotAZSet
+	}
+
+	zs := zsetObj.Ptr.(*zset.ZSet)
+	removedCount := 0
+
+	for _, member := range members {
+		status := zs.ZSetRemoveValue(member.Str)
+		if status == zset.ZSetOk {
+			removedCount++
+		} else {
+			io.AddReplyString(client, member.Str+"not found")
+		}
+	}
+
+	io.AddReplyNumber(client, int64(removedCount))
+	return
+}
+
+// ZScore - 获取一个成员的分数
+func ZScore(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 2 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	zsetKey := req[0].Str
+	member := req[1].Str
+
+	zsetObj := db.LookupKey(zsetKey)
+	if zsetObj == nil {
+		io.AddReplyString(client, zsetKey+"not found")
+		return errZSetNotFound
+	} else if zsetObj.Type != core.RedisZSet {
+		return errNotAZSet
+	}
+
+	zs := zsetObj.Ptr.(*zset.ZSet)
+	score, exist := zs.ZSetGetScore(member)
+	if exist {
+		io.AddReplyDouble(client, score)
+	} else {
+		io.SendReplyToClient(client, shared.Shared.Nil)
+	}
+
+	return
 }

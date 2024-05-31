@@ -9,6 +9,8 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"runtime"
 	"unsafe"
 )
@@ -24,9 +26,10 @@ var (
 	ZSetFound    = float64(C.ZSetSuccessSign())  // 1.797693e+308
 )
 
+// 大写，因为要是导出字段
 type ZNode struct {
-	score float64
-	value string
+	Score float64
+	Value string
 }
 
 func NewZNode(score float64, value string) ZNode {
@@ -44,39 +47,48 @@ type ZSet struct {
 
 func NewZSet() *ZSet {
 	ptr := C.NewZSet()
-	zset := &ZSet{ptr: ptr}
+	zset := &ZSet{
+		ptr:           ptr,
+		v2i:           make(map[string]int), // 初始化 map
+		availablePose: make([]int, 0),
+	}
 
 	// 注册析构函数
 	runtime.SetFinalizer(zset, func(zs *ZSet) {
 		C.ReleaseZSet(zs.ptr)
 	})
 
-	zset.v2i = make(map[string]int)
-
 	return zset
 }
 
+func (zs *ZSet) Len() int {
+	return int(C.ZSetLen(zs.ptr))
+}
+
 // 查找value对应score
-func (zs *ZSet) ZSetGetScore(value string) (float64, error) {
-	// score := float64(C.ZSetGetScore(zs.ptr, C.uint(zs.v2i[value])))
-	// if score != ZSetNotFound {
-	// 	return score, errors.New("Can't get score, value not found")
-	// }
-	// return score, nil
-	index, ok := zs.v2i[value]
-	if !ok {
-		return ZSetNotFound, errors.New("[zs.ZSetGetScore] can't get score, value not found")
+func (zs *ZSet) ZSetGetScore(value string) (float64, bool) {
+	score := float64(C.ZSetGetScore(zs.ptr, C.uint(zs.v2i[value])))
+	if math.Abs(score-ZSetNotFound) < 1e-6 {
+		return score, false
 	}
-	return zs.objs[index].score, nil
+	return score, true
+	// index, ok := zs.v2i[value]
+	// if !ok {
+	// 	return ZSetNotFound, false
+	// }
+	// return zs.objs[index].Score, true
 }
 
 // bool返回true表示已存在
 func (zs *ZSet) ZSetAdd(score float64, value string) (float64, bool) {
-	s, _ := zs.ZSetGetScore(value)
+	s, exist := zs.ZSetGetScore(value)
+	fmt.Println(s)
 	// 已存在
-	if s != ZSetNotFound {
+	if exist {
+		fmt.Println("exist")
 		return s, true
 	}
+	C.ZSetAdd(zs.ptr, C.double(score), C.uint(zs.v2i[value]))
 
 	// 不存在
 	length := len(zs.availablePose)
@@ -100,10 +112,16 @@ func (zs *ZSet) ZSetAdd(score float64, value string) (float64, bool) {
 }
 
 func (zs *ZSet) ZSetRemoveValue(value string) int {
+
+	// value不存在
+	if _, ok := zs.v2i[value]; !ok {
+		return ZSetErr
+	}
+
 	pos := int(C.ZSetRemoveValue(zs.ptr, C.uint(zs.v2i[value])))
 	if pos >= 0 {
-		zs.objs[pos].score = ZSetNotFound
-		zs.objs[pos].value = ""
+		zs.objs[pos].Score = ZSetNotFound
+		zs.objs[pos].Value = ""
 		zs.availablePose = append(zs.availablePose, pos)
 		delete(zs.v2i, value)
 		return ZSetOk
@@ -118,13 +136,14 @@ func (zs *ZSet) ZSetRemoveScore(score float64) int {
 	arrPtr := C.ZSetRemoveScore(zs.ptr, C.double(score), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]int)(unsafe.Pointer(arrPtr))[:length:length]
+	C.free(arrPtr)
 
 	for pos := range slice {
 		if pos >= 0 {
-			zs.objs[pos].score = ZSetNotFound
-			zs.objs[pos].value = ""
+			zs.objs[pos].Score = ZSetNotFound
+			zs.objs[pos].Value = ""
 			zs.availablePose = append(zs.availablePose, pos)
-			delete(zs.v2i, zs.objs[pos].value)
+			delete(zs.v2i, zs.objs[pos].Value)
 		} else {
 			// 虽然这样写不能保证原子性
 			return ZSetErr
@@ -140,6 +159,7 @@ func (zs *ZSet) ZSetSearch(score float64) []int {
 	arrPtr := C.ZSetSearch(zs.ptr, C.double(score), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]int)(unsafe.Pointer(arrPtr))[:length:length]
+	C.free(arrPtr)
 	return slice
 }
 
@@ -149,12 +169,13 @@ func (zs *ZSet) ZSetSearchRange(lscore, rscore float64) []ZNode {
 	arrPtr := C.ZSetSearchRange(zs.ptr, C.double(lscore), C.double(rscore), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
+	C.free(arrPtr)
 	return slice
 }
 
 func (zs *ZSet) ZSetUpdate(newscore float64, value string) (float64, error) {
-	score, err := zs.ZSetGetScore(value)
-	if err != nil {
+	score, exist := zs.ZSetGetScore(value)
+	if !exist {
 		return ZSetNotFound, errors.New("[zs.ZSetUpdate] can't get score, value not found")
 	}
 
@@ -174,7 +195,7 @@ func (zs *ZSet) ZSetSearchRank(rank int) (value string, score float64, err error
 	if index == -1 {
 		return "", ZSetNotFound, errors.New("[zs.ZSetSearchRank] not found")
 	}
-	return value, zs.objs[index].score, nil
+	return value, zs.objs[index].Score, nil
 }
 
 func (zs *ZSet) ZSetSearchRankRange(lrank, rrank int) []ZNode {
@@ -183,5 +204,6 @@ func (zs *ZSet) ZSetSearchRankRange(lrank, rrank int) []ZNode {
 	arrPtr := C.ZSetSearchRankRange(zs.ptr, C.int(lrank), C.int(rrank), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
+	C.free(arrPtr)
 	return slice
 }

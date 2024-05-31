@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 typedef uint32_t ZSetType;
 extern const double ZSetNotFound;
 extern const double ZSetSuccess;

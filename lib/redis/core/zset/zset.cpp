@@ -152,6 +152,7 @@ vector<pair<double, ZSetType>> zset::searchRankRange(int lrank, int rrank) {
 }
 
 void* NewZSet() {
+    cout << "new ZSet" << endl;
     zset* zs = new zset();
     return static_cast<zset*>(zs);
 }
@@ -161,11 +162,16 @@ int ReleaseZSet(void* zs) {
     return OK;
 }
 
-int DictLen(void* zs) {
+int ZSetLen(void* zs) {
+    cout << "ZSetLen" << static_cast<zset*>(zs)->len() << endl;
     return static_cast<zset*>(zs)->len();
+}
+double ZSetGetScore(void* zs, ZSetType value) {
+    return static_cast<zset*>(zs)->getScore(value);
 }
 
 double ZSetAdd(void* zs, double score, ZSetType value) {
+    cout << "Adding " << score << " " << value << endl;
     return static_cast<zset*>(zs)->add(score, value);
 }
 

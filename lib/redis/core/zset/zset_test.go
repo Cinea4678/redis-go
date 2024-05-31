@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 )
 
 func floatEquals(a, b float64) bool {
@@ -23,9 +24,9 @@ func TestZSet(t *testing.T) {
 	}
 
 	// 测试获取分数
-	gotScore, err := z.ZSetGetScore("element1")
-	if err != nil || !floatEquals(gotScore, 10.0) {
-		t.Errorf("Expected score 10.0, got %f, error: %v", gotScore, err)
+	gotScore, exist := z.ZSetGetScore("element1")
+	if !exist || !floatEquals(gotScore, 10.0) {
+		t.Errorf("Expected score 10.0, got %f, exist: %v", gotScore, exist)
 	} else {
 		fmt.Println("ZSetGetScore Successfully")
 	}
@@ -39,8 +40,8 @@ func TestZSet(t *testing.T) {
 	}
 
 	// 测试获取分数
-	gotNewScore, err := z.ZSetGetScore("element1")
-	if err != nil || !floatEquals(gotNewScore, 20.0) {
+	gotNewScore, exist := z.ZSetGetScore("element1")
+	if !exist || !floatEquals(gotNewScore, 20.0) {
 		t.Errorf("Expected score 20.0, got %f, error: %v", gotScore, err)
 	} else {
 		t.Logf("ZSetGetScore Successfully")
@@ -55,10 +56,64 @@ func TestZSet(t *testing.T) {
 	}
 
 	// 再次获取分数确认元素已被删除
-	gotScore, err = z.ZSetGetScore("element1")
-	if err == nil || !floatEquals(gotScore, ZSetNotFound) {
+	gotScore, exist = z.ZSetGetScore("element1")
+	if !exist || !floatEquals(gotScore, ZSetNotFound) {
 		t.Errorf("Expected score to be not found, got %f", gotScore)
 	} else {
 		t.Logf("ZSetGetScore Successfully")
 	}
+}
+
+func TestZSet_AddingDuplicate(t *testing.T) {
+	z := NewZSet()
+	_, _ = z.ZSetAdd(1.0, "item")
+	score, exist := z.ZSetAdd(1.0, "item")
+
+	if !exist || !floatEquals(score, 1.0) {
+		t.Errorf("Expected item to exist with score 1.0, got %f, exist: %t", score, exist)
+	}
+}
+
+func TestZSet_RemoveNonExistent(t *testing.T) {
+	z := NewZSet()
+	status := z.ZSetRemoveValue("nonexistent")
+
+	if status != ZSetErr {
+		t.Errorf("Expected error status when removing nonexistent item, got %d", status)
+	}
+}
+
+// func TestZSet_ConcurrentAccess(t *testing.T) {
+// 	z := NewZSet()
+// 	wg := sync.WaitGroup{}
+// 	wg.Add(2)
+
+// 	go func() {
+// 		defer wg.Done()
+// 		for i := 0; i < 100; i++ {
+// 			_, _ = z.ZSetAdd(float64(i), fmt.Sprintf("item%d", i))
+// 		}
+// 	}()
+
+// 	go func() {
+// 		defer wg.Done()
+// 		for i := 0; i < 100; i++ {
+// 			_, err := z.ZSetGetScore(fmt.Sprintf("item%d", i))
+// 			if err != nil && !errors.Is(err, errors.New("[zs.ZSetGetScore] can't get score, value not found")) {
+// 				t.Errorf("Error getting score for item%d: %v", i, err)
+// 			}
+// 		}
+// 	}()
+
+// 	wg.Wait()
+// }
+
+func TestZSet_Performance(t *testing.T) {
+	z := NewZSet()
+	start := time.Now()
+	for i := 0; i < 10000; i++ {
+		_, _ = z.ZSetAdd(float64(i), fmt.Sprintf("item%d", i))
+	}
+	duration := time.Since(start)
+	t.Logf("Inserted 10000 items in %v", duration)
 }

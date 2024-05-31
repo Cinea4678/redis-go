@@ -1,12 +1,13 @@
 package io
 
 import (
-	"github.com/cinea4678/resp3"
-	"github.com/emirpasic/gods/maps/linkedhashmap"
-	"github.com/panjf2000/gnet/v2"
 	"log"
 	"math/big"
 	"redis-go/lib/redis/core"
+
+	"github.com/cinea4678/resp3"
+	"github.com/emirpasic/gods/maps/linkedhashmap"
+	"github.com/panjf2000/gnet/v2"
 )
 
 // AddReplyArray 向客户端发回一组值
@@ -29,6 +30,12 @@ func AddReplyNumber(client *core.RedisClient, number int64) {
 // AddReplyBigNumber 向客户端发回一个大数
 func AddReplyBigNumber(client *core.RedisClient, number *big.Int) {
 	v := resp3.Value{Type: resp3.TypeNumber, BigInt: number}
+	SendReplyToClient(client, &v)
+}
+
+// AddReplyDouble 向客户端发回一个浮点数
+func AddReplyDouble(client *core.RedisClient, float float64) {
+	v := resp3.Value{Type: resp3.TypeDouble, Double: float}
 	SendReplyToClient(client, &v)
 }
 
