@@ -1,11 +1,14 @@
 local redisApi = require('redisApi')
 local resp3 = require('resp3')
+local lulpeg = require('lulpeg')
+
+-- matchkey功能，用户传入str，返回当前有含有str的key名
 
 function Info()
     return [[
 	{
-		"name": "Hello",
-		"commands": ["hellolua"]
+		"name": "lulupeg",
+		"commands": ["matchkey"]
 	}
 	]]
 end
@@ -25,28 +28,17 @@ end
 
 function Handle(db, reqStr)
     local req = resp3.fromString(reqStr)
-    --printTable(req)
     assert(req.t == resp3.typeChars.typeArray, "Error: Invalid Command") -- 确保传入格式正确
 
     local command = string.lower(req.elems[1].str)
-    if command == "hellolua" then
-        if #req.elems > 1 then
+    if command == "matchkey" then
+        if #req.elems == 2 then
             local name = req.elems[2].str -- 取出参数
             local resp = "Hello, " .. name .. "! I am a lua extension."
             local r = resp3.newSimpleString(resp)
             return resp3.toRESP3String(r)
         else
-            local keyName = "hello-lua-count"
-            local count = redisApi.getKeyInt(db, keyName)
-            local resp = ""
-            if count == nil or count == 0 then
-                resp = resp .. "Hi! It's your first time to call me."
-                redisApi.setKeyInt(db, keyName, 1)
-            else
-                resp = resp .. "Hi again! You have called me for " .. count ..
-                           " times."
-                redisApi.setKeyInt(db, keyName, count + 1)
-            end
+            local resp = "(Err) Only one parameter is allowed."
             local r = resp3.newSimpleString(resp)
             return resp3.toRESP3String(r)
         end
