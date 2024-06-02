@@ -1,12 +1,12 @@
 local redisApi = require('redisApi')
 local resp3 = require('resp3')
 
--- matchkey功能，用户传入str，返回当前有含有str的key名
+-- matchkeys功能，用户传入str，返回当前有含有str的key名
 
 function Info()
     return [[
 	{
-		"name": "match",
+		"name": "matchkey",
 		"commands": ["matchkey"]
 	}
 	]]
@@ -58,7 +58,7 @@ end
              end
 
              -- 创建返回值
-             local resp = "Matched Keys: " .. table.concat(matchedKeys, ", ")
+             local resp = "Matched Keys: \n" .. table.concat(matchedKeys, "\n")
              local r = resp3.newSimpleString(resp)
              return resp3.toRESP3String(r)
          else
