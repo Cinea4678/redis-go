@@ -45,4 +45,9 @@ function redisApi.setExpire(db, key, expire) end
 ---@return integer
 function redisApi.getExpire(db, key) return 0 end
 
+---获取所有键
+---@param db integer
+---@return table
+function redisApi.getAllKey(db) return {} end
+
 return redisApi

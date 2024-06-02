@@ -100,4 +100,14 @@ var RedisApiLuaExports = map[string]lua.LGFunction{
 		}
 		return 1
 	},
+	"getAllKey": func(L *lua.LState) int {
+		db := L.ToInt(1)
+		keys := Server.Db[db].GetAllKeys()
+		luaKeys := L.NewTable()
+		for _, key := range keys {
+			luaKeys.Append(lua.LString(key))
+		}
+		L.Push(luaKeys)
+		return 1
+	},
 }
