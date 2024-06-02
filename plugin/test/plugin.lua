@@ -30,7 +30,7 @@ function Handle(db, reqStr)
     local command = string.lower(req.elems[1].str)
     if command == "getallkeys" then
         local keys = redisApi.getAllKey(db)
-        printTable(keys)
+        --printTable(keys)
         local resp = "Keys in database " .. db .. ":"
         for _, key in ipairs(keys) do
             resp = resp .. "\n" .. key
