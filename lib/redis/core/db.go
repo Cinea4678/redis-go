@@ -1,9 +1,5 @@
 package core
 
-import (
-	"fmt"
-)
-
 type RedisDb struct {
 	Dict    *Dict //存储实际的kv对
 	Expires *Dict //存某个key的过期时间
@@ -94,8 +90,6 @@ func (r *RedisDb) GetAllKeys() []string {
 	keys := make([]string, 0, r.Dict.DictLen())
 	r.Dict.ForEach(func(key string, _item interface{}) {
 		keys = append(keys, key)
-		fmt.Println("*****")
-		fmt.Println(key)
 	})
 	return keys
 }
