@@ -4,7 +4,7 @@ local resp3 = require('resp3')
 function Info()
     return [[
 	{
-		"name": "Test",
+		"name": "getAllKeys",
 		"commands": ["getallkeys"]
 	}
 	]]

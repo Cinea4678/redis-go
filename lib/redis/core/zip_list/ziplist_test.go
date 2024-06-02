@@ -33,7 +33,7 @@ func TestZiplistPush(t *testing.T) {
 	zl := NewZiplist()
 	defer zl.DeleteByPos(1) // Assuming DeleteByPos correctly deletes the first node
 
-	testBytes := []byte("test bytes")
+	testBytes := []byte("getAllKeys bytes")
 	testInt := int64(12345)
 
 	// 测试推送字节
@@ -55,8 +55,8 @@ func TestZiplistPush_(t *testing.T) {
 		input []byte
 		want  int
 	}{
-		{[]byte("test bytes"), 0},
-		{[]byte("another test"), 0},
+		{[]byte("getAllKeys bytes"), 0},
+		{[]byte("another getAllKeys"), 0},
 		{[]byte("more data"), 0},
 	}
 
@@ -152,7 +152,7 @@ func TestZiplistInsert_(t *testing.T) {
 // 测试节点的查找和导航功能
 func TestZiplistNavigation(t *testing.T) {
 	zl := NewZiplist()
-	defer zl.DeleteByPos(1) // Cleanup after test
+	defer zl.DeleteByPos(1) // Cleanup after getAllKeys
 
 	testValue := int64(42)
 	zl.PushInteger(testValue)
@@ -216,7 +216,7 @@ func TestZiplistNavigation_(t *testing.T) {
 // 测试长度和blob长度功能
 func TestZiplistLengths(t *testing.T) {
 	zl := NewZiplist()
-	defer zl.DeleteByPos(1) // Cleanup after test
+	defer zl.DeleteByPos(1) // Cleanup after getAllKeys
 
 	testByte1 := []byte("testByte 1")
 	testByte2 := []byte("testByte 2")
