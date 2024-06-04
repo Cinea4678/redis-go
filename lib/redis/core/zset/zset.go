@@ -10,7 +10,6 @@ import "C"
 import (
 	"errors"
 	"fmt"
-	"math"
 	"runtime"
 	"unsafe"
 )
@@ -27,6 +26,12 @@ var (
 )
 
 // 大写，因为要是导出字段
+
+type CZNode struct {
+	Score C.double
+	Value C.uint
+}
+
 type ZNode struct {
 	Score float64
 	Value string
@@ -67,16 +72,11 @@ func (zs *ZSet) Len() int {
 
 // 查找value对应score
 func (zs *ZSet) ZSetGetScore(value string) (float64, bool) {
-	score := float64(C.ZSetGetScore(zs.ptr, C.uint(zs.v2i[value])))
-	if math.Abs(score-ZSetNotFound) < 1e-6 {
-		return score, false
+	index, ok := zs.v2i[value]
+	if !ok {
+		return ZSetNotFound, false
 	}
-	return score, true
-	// index, ok := zs.v2i[value]
-	// if !ok {
-	// 	return ZSetNotFound, false
-	// }
-	// return zs.objs[index].Score, true
+	return zs.objs[index].Score, true
 }
 
 // bool返回true表示已存在
@@ -88,9 +88,9 @@ func (zs *ZSet) ZSetAdd(score float64, value string) (float64, bool) {
 		fmt.Println("exist")
 		return s, true
 	}
-	C.ZSetAdd(zs.ptr, C.double(score), C.uint(zs.v2i[value]))
 
 	// 不存在
+
 	length := len(zs.availablePose)
 	if length > 0 {
 		pos := zs.availablePose[length-1]
@@ -107,6 +107,7 @@ func (zs *ZSet) ZSetAdd(score float64, value string) (float64, bool) {
 		// fmt.Println("zs.v2i[", value, "]", "={", pos, "}")
 		zs.objs = append(zs.objs, ZNode{score, value})
 	}
+	C.ZSetAdd(zs.ptr, C.double(score), C.uint(zs.v2i[value]))
 
 	return score, false
 }
@@ -136,7 +137,7 @@ func (zs *ZSet) ZSetRemoveScore(score float64) int {
 	arrPtr := C.ZSetRemoveScore(zs.ptr, C.double(score), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]int)(unsafe.Pointer(arrPtr))[:length:length]
-	C.free(arrPtr)
+	// C.free(arrPtr)
 
 	for pos := range slice {
 		if pos >= 0 {
@@ -159,7 +160,7 @@ func (zs *ZSet) ZSetSearch(score float64) []int {
 	arrPtr := C.ZSetSearch(zs.ptr, C.double(score), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]int)(unsafe.Pointer(arrPtr))[:length:length]
-	C.free(arrPtr)
+	// C.free(arrPtr)
 	return slice
 }
 
@@ -167,9 +168,15 @@ func (zs *ZSet) ZSetSearchRange(lscore, rscore float64) []ZNode {
 	var cLen C.int
 	// 指针传长度，函数返回值数组
 	arrPtr := C.ZSetSearchRange(zs.ptr, C.double(lscore), C.double(rscore), &cLen)
+	defer C.free(arrPtr)
+
 	length := int(cLen)
-	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
-	C.free(arrPtr)
+	Cslice := (*[1 << 30]C.uint)(unsafe.Pointer(arrPtr))[:length:length]
+	var slice []ZNode
+	for _, cindex := range Cslice {
+		index := uint(cindex)
+		slice = append(slice, zs.objs[index])
+	}
 	return slice
 }
 
@@ -204,6 +211,6 @@ func (zs *ZSet) ZSetSearchRankRange(lrank, rrank int) []ZNode {
 	arrPtr := C.ZSetSearchRankRange(zs.ptr, C.int(lrank), C.int(rrank), &cLen)
 	length := int(cLen)
 	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
-	C.free(arrPtr)
+	// C.free(arrPtr)
 	return slice
 }

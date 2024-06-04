@@ -152,7 +152,6 @@ vector<pair<double, ZSetType>> zset::searchRankRange(int lrank, int rrank) {
 }
 
 void* NewZSet() {
-    cout << "new ZSet" << endl;
     zset* zs = new zset();
     return static_cast<zset*>(zs);
 }
@@ -163,7 +162,6 @@ int ReleaseZSet(void* zs) {
 }
 
 int ZSetLen(void* zs) {
-    cout << "ZSetLen" << static_cast<zset*>(zs)->len() << endl;
     return static_cast<zset*>(zs)->len();
 }
 double ZSetGetScore(void* zs, ZSetType value) {
@@ -205,10 +203,13 @@ void* ZSetSearchRange(void* zs, double lscore, double rscore, int* length) {
     // 这里的pair对应go端的ZNode
     vector<pair<double, ZSetType>> v =
         static_cast<zset*>(zs)->searchRange(lscore, rscore);
-    pair<double, ZSetType>* res =
-        (pair<double, ZSetType>*)malloc(v.size() * sizeof(ZSetType));
-    res = &v[0];
     *length = v.size();
+    ZSetType* res = (ZSetType*)malloc(*length * sizeof(ZSetType));
+
+    for (int i = 0; i < *length; i++) {
+        res[i] = v[i].second;
+    }
+
     return static_cast<void*>(res);
 }
 
@@ -219,8 +220,8 @@ ZSetType ZSetSearchRank(void* zs, int rank) {
 void* ZSetSearchRankRange(void* zs, int lrank, int rrank, int* length) {
     vector<pair<double, ZSetType>> v =
         static_cast<zset*>(zs)->searchRankRange(lrank, rrank);
-    pair<double, ZSetType>* res =
-        (pair<double, ZSetType>*)malloc(v.size() * sizeof(ZSetType));
+    pair<double, ZSetType>* res = (pair<double, ZSetType>*)malloc(
+        v.size() * sizeof(pair<double, ZSetType>));
     res = &v[0];
     *length = v.size();
     return static_cast<void*>(res);

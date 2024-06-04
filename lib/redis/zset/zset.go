@@ -7,6 +7,7 @@ import (
 	"redis-go/lib/redis/io"
 	"redis-go/lib/redis/shared"
 	"strconv"
+	"strings"
 
 	"github.com/cinea4678/resp3"
 )
@@ -56,10 +57,10 @@ func ZAdd(client *core.RedisClient) (err error) {
 		fmt.Println(score, value)
 		_, exist := zs.ZSetGetScore(value)
 		if exist {
-			fmt.Println("ZSetUpdate")
+			// fmt.Println("ZSetUpdate", value, score, s)
 			zs.ZSetUpdate(score, value)
 		} else {
-			fmt.Println("ZSetAdd")
+			// fmt.Println("ZSetAdd", value, score, s)
 			zs.ZSetAdd(score, value)
 		}
 
@@ -99,7 +100,10 @@ func ZCount(client *core.RedisClient) (err error) {
 	if len(req) < 3 {
 		return errNotEnoughArgs
 	}
+
+	db := client.Db
 	zsetKey := req[0].Str
+
 	minScore, err := strconv.ParseFloat(req[1].Str, 64)
 	if err != nil {
 		return errInvalidArgs
@@ -109,7 +113,6 @@ func ZCount(client *core.RedisClient) (err error) {
 		return errInvalidArgs
 	}
 
-	db := client.Db
 	zsetObj := db.LookupKey(zsetKey)
 	if zsetObj == nil {
 		io.AddReplyString(client, zsetKey+"not found")
@@ -158,8 +161,7 @@ func ZIncrBy(client *core.RedisClient) (err error) {
 	return
 }
 
-// ZRange - 通过索引区间获取成员
-// 负值代表倒数(例如-1代表倒数第一个)
+// ZRange - 通过分数区间获取成员
 func ZRange(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 
@@ -170,29 +172,50 @@ func ZRange(client *core.RedisClient) (err error) {
 	db := client.Db
 	zsetKey := req[0].Str
 
-	start, err := strconv.Atoi(req[1].Str)
+	minScore, err := strconv.ParseFloat(req[1].Str, 64)
 	if err != nil {
 		return err
 	}
-	stop, err := strconv.Atoi(req[2].Str)
+	maxScore, err := strconv.ParseFloat(req[2].Str, 64)
 	if err != nil {
 		return err
+	}
+
+	var withscores bool
+	if len(req) > 3 {
+		w := req[3].Str
+		withscores = (strings.ToUpper(w) == "WITHSCORES")
 	}
 
 	zsetObj := db.LookupKey(zsetKey)
 	if zsetObj == nil {
-		io.AddReplyArray(client, []*resp3.Value{})
+		io.SendReplyToClient(client, shared.Shared.Nil)
 		return
 	}
 
 	zs := zsetObj.Ptr.(*ZSet)
-	members := zs.ZSetSearchRankRange(start, stop)
-	results := make([]*resp3.Value, len(members))
-	for i, member := range members {
-		results[i] = resp3.NewSimpleStringValue(member.Value)
-	}
-	io.AddReplyArray(client, results)
+	members := zs.ZSetSearchRange(minScore, maxScore)
+	fmt.Println(members)
+	// for _, m := range members {
+	// 	io.AddReplyString(client, m.Value)
+	// 	io.AddReplyDouble(client, m.Score)
+	// }
 
+	if withscores {
+		results := make([]*resp3.Value, 2*len(members))
+		for i, member := range members {
+			results[2*i] = resp3.NewSimpleStringValue(member.Value)
+			score, _ := zs.ZSetGetScore(member.Value)
+			results[2*i+1] = resp3.NewDoubleValue(score)
+		}
+		io.AddReplyArray(client, results)
+	} else {
+		results := make([]*resp3.Value, len(members))
+		for i, member := range members {
+			results[i] = resp3.NewSimpleStringValue(member.Value)
+		}
+		io.AddReplyArray(client, results)
+	}
 	return
 }
 
