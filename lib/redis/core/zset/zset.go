@@ -209,8 +209,14 @@ func (zs *ZSet) ZSetSearchRankRange(lrank, rrank int) []ZNode {
 	var cLen C.int
 	// 指针传长度，函数返回值数组
 	arrPtr := C.ZSetSearchRankRange(zs.ptr, C.int(lrank), C.int(rrank), &cLen)
+	defer C.free(arrPtr)
+
 	length := int(cLen)
-	slice := (*[1 << 30]ZNode)(unsafe.Pointer(arrPtr))[:length:length]
-	// C.free(arrPtr)
+	Cslice := (*[1 << 30]C.uint)(unsafe.Pointer(arrPtr))[:length:length]
+	var slice []ZNode
+	for _, cindex := range Cslice {
+		index := uint(cindex)
+		slice = append(slice, zs.objs[index])
+	}
 	return slice
 }

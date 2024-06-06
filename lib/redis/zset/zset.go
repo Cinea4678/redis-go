@@ -161,8 +161,61 @@ func ZIncrBy(client *core.RedisClient) (err error) {
 	return
 }
 
-// ZRange - 通过分数区间获取成员
+// ZRange - 获取指定区间的成员
 func ZRange(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 3 {
+		return errNotEnoughArgs
+	}
+
+	db := client.Db
+	zsetKey := req[0].Str
+
+	start, err := strconv.Atoi(req[1].Str)
+	if err != nil {
+		return err
+	}
+	stop, err := strconv.Atoi(req[2].Str)
+	if err != nil {
+		return err
+	}
+
+	var withscores bool
+	if len(req) > 3 {
+		w := req[3].Str
+		withscores = (strings.ToUpper(w) == "WITHSCORES")
+	}
+
+	zsetObj := db.LookupKey(zsetKey)
+	if zsetObj == nil {
+		io.SendReplyToClient(client, shared.Shared.Nil)
+		return
+	}
+
+	zs := zsetObj.Ptr.(*ZSet)
+	members := zs.ZSetSearchRankRange(start, stop)
+
+	if withscores {
+		results := make([]*resp3.Value, 2*len(members))
+		for i, member := range members {
+			results[2*i] = resp3.NewSimpleStringValue(member.Value)
+			score, _ := zs.ZSetGetScore(member.Value)
+			results[2*i+1] = resp3.NewDoubleValue(score)
+		}
+		io.AddReplyArray(client, results)
+	} else {
+		results := make([]*resp3.Value, len(members))
+		for i, member := range members {
+			results[i] = resp3.NewSimpleStringValue(member.Value)
+		}
+		io.AddReplyArray(client, results)
+	}
+	return
+}
+
+// ZRangeByScore - 通过分数区间获取成员
+func ZRangeByScore(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 
 	if len(req) < 3 {

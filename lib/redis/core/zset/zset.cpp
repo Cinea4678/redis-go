@@ -220,10 +220,12 @@ ZSetType ZSetSearchRank(void* zs, int rank) {
 void* ZSetSearchRankRange(void* zs, int lrank, int rrank, int* length) {
     vector<pair<double, ZSetType>> v =
         static_cast<zset*>(zs)->searchRankRange(lrank, rrank);
-    pair<double, ZSetType>* res = (pair<double, ZSetType>*)malloc(
-        v.size() * sizeof(pair<double, ZSetType>));
-    res = &v[0];
     *length = v.size();
+    ZSetType* res = (ZSetType*)malloc(*length * sizeof(ZSetType));
+    for (int i = 0; i < *length; i++) {
+        res[i] = v[i].second;
+    }
+
     return static_cast<void*>(res);
 }
 

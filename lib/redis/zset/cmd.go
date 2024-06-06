@@ -27,7 +27,7 @@ var ZSetCommandTable = []*core.RedisCommand{
 	// {"zlexcount", ZLexCount},
 	{"zrange", ZRange},
 	// {"zrangebylex", ZRangeByLex},
-	// {"zrangebyscore", ZRangeByScore},
+	{"zrangebyscore", ZRangeByScore},
 	// {"zrank", ZRank},
 	{"zrem", ZRem},
 	// {"zremrangebylex", ZRemRangeByLex},
