@@ -1,9 +1,11 @@
 package redis
 
 import (
+	"fmt"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
+	"redis-go/lib/redis/resistence"
 	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
@@ -114,6 +116,15 @@ func Start() {
 
 	initServerConfig()
 	initServer()
+
+	if err := resistence.LoadAOF("appendonly.aof"); err != nil {
+		fmt.Println("Failed to load AOF: %v", err)
+	}
+
+	if err := resistence.InitAOF("appendonly.aof"); err != nil {
+		fmt.Println("Failed to initialize AOF: %v", err)
+	}
+
 	elMain()
 }
 
