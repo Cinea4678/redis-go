@@ -3,6 +3,7 @@ package io
 import (
 	"errors"
 	"redis-go/lib/redis/core"
+	"redis-go/lib/redis/resistence"
 	"redis-go/lib/redis/shared"
 	"strings"
 
@@ -47,6 +48,11 @@ func ProcessCommand(client *core.RedisClient) (err error) {
 	if client.Cmd == nil {
 		log.Warn().Str("addr", client.Conn.RemoteAddr().String()).Str("command", cmd).Msg("not found")
 		return errCommandUnknown
+	}
+
+	// 检查是否需要持久化该命令
+	if resistence.NeedAOF(cmd) {
+		resistence.AddToAOFBuffer(client.ReqValue)
 	}
 
 	return call(client, 0)

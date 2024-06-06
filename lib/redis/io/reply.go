@@ -63,6 +63,9 @@ func AddReplyObject(client *core.RedisClient, obj *core.Object) {
 
 // SendReplyToClient 向客户端发送一个已经构造为resp3.Value的值
 func SendReplyToClient(client *core.RedisClient, value *resp3.Value) {
+	if client.IsAOF {
+		return
+	}
 	s := value.ToRESP3String()
 	SendRawReplyToClient(client, []byte(s))
 }

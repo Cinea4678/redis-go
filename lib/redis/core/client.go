@@ -17,5 +17,6 @@ type RedisClient struct {
 	RawReq   string       // 从客户端收到的原始请求
 	ReqValue *resp3.Value // 从客户端收到的请求
 
-	Flags int //处理标记
+	Flags int  //处理标记
+	IsAOF bool //是否为AOF虚拟客户端
 }
