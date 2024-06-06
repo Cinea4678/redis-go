@@ -37,9 +37,21 @@ var aofCommands = map[string]struct{}{
 	"decrby": ept,
 	"append": ept,
 
-	// push
-	"zadd":  ept,
+	// list
 	"lpush": ept,
+	"lpop":  ept,
+	"rpush": ept,
+	"rpop":  ept,
+
+	//set
+	"sadd": ept,
+	"srem": ept,
+
+	//zset
+	"zadd":             ept,
+	"zincrby":          ept,
+	"zrem":             ept,
+	"zremrangebyscore": ept,
 
 	// Add other write-related commands here
 }
