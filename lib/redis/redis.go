@@ -1,21 +1,19 @@
 package redis
 
 import (
-	"fmt"
+	"github.com/panjf2000/gnet/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
-	"redis-go/lib/redis/resistence"
+	"redis-go/lib/redis/list"
 	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
 	"redis-go/lib/redis/zset"
 	"strconv"
-
-	"github.com/panjf2000/gnet/v2"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -33,6 +31,7 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, zset.ZSetCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, list.ListCommandTable...)
 
 	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
 	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
@@ -120,13 +119,13 @@ func Start() {
 	initServerConfig()
 	initServer()
 
-	if err := resistence.LoadAOF("appendonly.aof"); err != nil {
-		fmt.Println("Failed to load AOF: %v", err)
-	}
+	//if err := resistence.LoadAOF("appendonly.aof"); err != nil {
+	//	fmt.Println("Failed to load AOF: %v", err)
+	//}
 
-	if err := resistence.InitAOF("appendonly.aof"); err != nil {
-		fmt.Println("Failed to initialize AOF: %v", err)
-	}
+	//if err := resistence.InitAOF("appendonly.aof"); err != nil {
+	//	fmt.Println("Failed to initialize AOF: %v", err)
+	//}
 
 	elMain()
 }

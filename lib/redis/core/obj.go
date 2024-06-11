@@ -23,6 +23,7 @@ const (
 	ObjectEncodingFloat64
 	ObjectEncodingSet
 	ObjectEncodingZSet
+	ObjectEncodingList
 )
 
 var (
@@ -101,6 +102,10 @@ func CreateSet(set *Set) *Object {
 
 func CreateZSet(zset *ZSet) *Object {
 	return CreateObject(RedisZSet, ObjectEncodingZSet, zset)
+}
+
+func CreateList(list *List) *Object {
+	return CreateObject(RedisList, ObjectEncodingList, list)
 }
 
 // GetString 获取以字符串形式表示的值

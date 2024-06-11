@@ -1,1 +1,9 @@
-set test 1
+set test 1set k1 111
+set k1 111
+lpush l2 1 2 3 ccr 1 2 3
+rpop l2 2
+zadd z 0.1 z1
+zadd z 0.2 z2 0.3 z3 -14 z4
+zadd z 0.2 z2
+zincrby z 1 z1
+zrem z z1

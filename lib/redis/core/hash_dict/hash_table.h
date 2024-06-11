@@ -2,11 +2,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <optional>
 #include <iostream>
+#include <optional>
 #include <random>
 #include <string>
-
 
 using namespace std;
 
@@ -240,17 +239,20 @@ private:
             entry = entry->next;
         }
 
+        // next为空，到下一个桶的开头找
+        // 注意这里是sizemask，不然会超索引
+        // while (!entry && bucket < ht->size) {
+        while (!entry && bucket < ht->sizemask) {
+            bucket++;
+            entry = ht->table[bucket];
+        }
+
         // 检查是否到达了最后一个节点，或者当前已经是尾后迭代器
-        if (!entry && bucket > ht->sizemask) {
+        if (!entry && bucket >= ht->sizemask) {
             // 设置为尾后迭代器
             bucket = ht->size;
             entry = nullptr;
             return;
-        }
-
-        // next为空，到下一个桶的开头找
-        while (!entry && bucket < ht->size) {
-            entry = ht->table[bucket++];
         }
     }
 
