@@ -1,7 +1,6 @@
 package redis
 
 import (
-	"fmt"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
@@ -10,6 +9,7 @@ import (
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
+	"redis-go/lib/redis/zset"
 	"strconv"
 
 	"github.com/panjf2000/gnet/v2"
@@ -31,10 +31,12 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, system.CommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, zset.ZSetCommandTable...)
 
 	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
 	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
 	io.RedisCommandInfo = append(io.RedisCommandInfo, set.SetCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, zset.ZSetCommandInfoTable...)
 
 }
 
