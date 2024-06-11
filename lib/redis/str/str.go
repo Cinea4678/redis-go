@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/cinea4678/resp3"
+	"go.uber.org/multierr"
 )
 
 /**
@@ -177,9 +178,115 @@ func doGet(client *core.RedisClient, key string) (err error) {
 }
 
 /*
+GetRange: 获取字符串值的子字符串(负数表示倒数第x个)
+Syntax: GETRANGE key start end
+Reply: 子字符串
+
+https://www.redisdocs.com/commands/getrange/
+*/
+func GetRange(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 3 {
+		return errNotEnoughArgs
+	}
+
+	key := req[0].Str
+	start, err := strconv.ParseInt(req[1].Str, 10, 64)
+	if err != nil {
+		return errInvalidInt
+	}
+
+	end, err := strconv.ParseInt(req[2].Str, 10, 64)
+	if err != nil {
+		return errInvalidInt
+	}
+
+	db := client.Db
+
+	// 查找键对应的值（其实官方实现是返回空字符串而非nil）
+	obj := db.LookupKey(key)
+	if obj == nil {
+		io.SendReplyToClient(client, shared.Shared.Nil)
+		return
+	}
+
+	str, err := obj.GetString()
+	strLen := int64(len(str))
+
+	// 索引超限
+	if start >= strLen || end < -strLen {
+		// log.Println("out of range")
+		io.AddReplyString(client, "")
+		return
+	}
+	// 特殊情况的索引处理，部分细节处理与官方不同
+
+	if start < -strLen {
+		// 超出倒数范围，则规定为头索引
+		start = 0
+	} else if start < 0 {
+		// 没超限的负数，转换为倒数
+		start = strLen + start
+	}
+
+	if end >= strLen {
+		// 超出数组长度，则规定为尾索引
+		end = strLen - 1
+	} else if end < 0 {
+		// 没超限的负数，转换为倒数
+		end = strLen + end
+	}
+
+	// 转换后start大于end，返回空字符串
+	if start > end {
+		io.AddReplyString(client, "")
+		return
+	}
+
+	// 获取子字符串并返回
+	subrange := str[start : end+1]
+	io.AddReplyString(client, subrange)
+	return
+}
+
+/*
+GetDel 获取指定键的值并删除键（但目前的实现要先查找再查找后删除）
+Syntax: GETDEL key
+Reply: 键对应值
+*/
+func GetDel(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 1 {
+		return errNotEnoughArgs
+	}
+
+	key := req[0].Str
+
+	db := client.Db
+
+	// 查找并删除键对应的值
+	obj := db.LookupKeyDel(key)
+	if obj == nil {
+		io.SendReplyToClient(client, shared.Shared.Nil)
+		return
+	}
+
+	str, err := obj.GetString()
+
+	// 返回键值
+	io.AddReplyString(client, str)
+
+	return
+}
+
+/*
 Append：如果key已存在且为字符串，则追加到末尾；如果不存在，则设置为空字符串
 Syntax: APPEND key value
 Reply: append完成后value的长度
+
+https://www.redisdocs.com/commands/append/
 */
 func Append(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
@@ -200,7 +307,7 @@ func Append(client *core.RedisClient) (err error) {
 	if obj == nil {
 		newObj := core.CreateString(appendValue)
 		db.SetKey(key, newObj)
-		io.SendReplyToClient(client, resp3.NewNumberValue(int64(len(appendValue))))
+		io.AddReplyNumber(client, int64(len(appendValue)))
 		return
 	}
 
@@ -211,8 +318,75 @@ func Append(client *core.RedisClient) (err error) {
 	db.SetKey(key, newObj)
 
 	// 返回追加后的字符串长度
-	io.SendReplyToClient(client, resp3.NewNumberValue(int64(len(newValue))))
+	io.AddReplyNumber(client, int64(len(newValue)))
 	return
+}
+
+func LCS(client *core.RedisClient) (err error) {
+	req := client.ReqValue.Elems[1:]
+
+	if len(req) < 2 {
+		return errNotEnoughArgs
+	}
+
+	key1 := req[0].Str
+	key2 := req[1].Str
+
+	db := client.Db
+
+	obj1 := db.LookupKey(key1)
+	obj2 := db.LookupKey(key2)
+
+	if obj1 == nil || obj2 == nil {
+		io.SendReplyToClient(client, shared.Shared.Nil)
+		return
+	}
+
+	str1, err1 := obj1.GetString()
+	str2, err2 := obj2.GetString()
+
+	if err1 != nil && err2 != nil {
+		err = multierr.Append(err1, err2)
+		return
+	}
+
+	lcs := FindLCS(str1, str2)
+	io.AddReplyString(client, lcs)
+	return
+}
+
+func FindLCS(str1, str2 string) string {
+	n, m := len(str1), len(str2)
+
+	// 最长公共子字符串在f1中的结束位置
+	end := 0
+	// 最长公共子字符串的长度
+	maxLen := 0
+
+	// 二维数组，dp[i][j]是s1中以i结尾和s2中以j结尾的最长公共子字符串的长度
+	dp := make([][]int, n+1)
+	for i := range dp {
+		dp[i] = make([]int, m+1)
+	}
+
+	for i := 1; i <= n; i++ {
+		for j := 1; j <= m; j++ {
+			if str1[i-1] == str2[j-1] {
+				dp[i][j] = dp[i-1][j-1] + 1
+				if dp[i][j] > maxLen {
+					maxLen = dp[i][j]
+					end = i - 1 // 更新最长公共子字符串的结束位置
+				}
+			}
+		}
+	}
+
+	// 根据maxLen和end提取最长公共子字符串
+	if maxLen > 0 {
+		return str1[end-maxLen+1 : end+1]
+	}
+
+	return "" // 如果最长公共子字符串长度为0，则返回空字符串
 }
 
 //func setGenericCommand(client *RedisClient, flags int, key *Object, val *Object, expire *Object, unit int, ok_reply *Object, abort_reply *Object) {

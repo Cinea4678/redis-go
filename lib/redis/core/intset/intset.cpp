@@ -63,11 +63,11 @@ void intset::upgrade(Encoding target)
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
         int ol = i * current_bit_size;
         int nl = i * target_bit_size + target_bit_size - current_bit_size;
-        memcpy_s(data + nl, current_bit_size, data + ol, current_bit_size);
+        memcpy(data + nl, data + ol, current_bit_size);
 #else
         int ol = i * current_bit_size;
         int nl = i * target_bit_size;
-        memcpy_s(data + nl, target_bit_size, data + ol, current_bit_size);
+        memcpy(data + nl, data + ol, current_bit_size);
 #endif
     }
 
@@ -122,15 +122,15 @@ int intset::insert(int64_t val, int pos)
     auto data = store.data();
     int ol = bit_size * pos;
     int nl = bit_size * (pos + 1);
-    memcpy_s(data + nl, (length - pos) * bit_size, data + ol, (length - pos) * bit_size);
+    memcpy(data + nl, data + ol, (length - pos) * bit_size);
 
     // 复制数据
     uint8_t val_ptr[8]{};
     *(int64_t*)val_ptr = val;
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-    memcpy_s(data + bit_size * pos, bit_size, val_ptr + 8 - bit_size, bit_size);
+    memcpy(data + bit_size * pos,val_ptr + 8 - bit_size, bit_size);
 #else
-    memcpy_s(data + bit_size * pos, bit_size, val_ptr, bit_size);
+    memcpy(data + bit_size * pos, val_ptr, bit_size);
 #endif
 
     length++;
@@ -196,7 +196,7 @@ int intset::remove(int64_t val)
     auto data = store.data();
     int ol = bit_size * (fi + 1);
     int nl = bit_size * fi;
-    memcpy_s(data + nl, (length - fi) * bit_size, data + ol, (length - fi - 1) * bit_size);
+    memcpy(data + nl,  data + ol, (length - fi - 1) * bit_size);
 
     length--;
     auto new_size = bit_size * length;
