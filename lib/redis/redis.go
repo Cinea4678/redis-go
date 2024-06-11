@@ -31,6 +31,12 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, zset.ZSetCommandTable...)
+
+	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, set.SetCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, zset.ZSetCommandInfoTable...)
+
 }
 
 // 初始化server

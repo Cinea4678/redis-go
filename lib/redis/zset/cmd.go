@@ -40,3 +40,15 @@ var ZSetCommandTable = []*core.RedisCommand{
 	// {"zunionstore", ZUnionStore},
 	// {"zscan", ZScan},
 }
+
+var ZSetCommandInfoTable = []*core.RedisCommandInfo{
+	core.NewRedisCommandInfo("zadd", -4, []string{"write", "denyoom"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zcard", 2, []string{"readonly"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zcount", 4, []string{"readonly"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zincrby", 4, []string{"write"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zrangebyscore", -4, []string{"readonly"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zrem", -3, []string{"write"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zscore", 3, []string{"readonly"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zrank", 3, []string{"readonly"}, 1, 1, 1),
+	core.NewRedisCommandInfo("zrange", -4, []string{"readonly"}, 1, 1, 1),
+}
