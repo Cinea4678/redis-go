@@ -1,12 +1,13 @@
 package io
 
 import (
-	"github.com/cinea4678/resp3"
-	"github.com/emirpasic/gods/maps/linkedhashmap"
-	"github.com/panjf2000/gnet/v2"
 	"log"
 	"math/big"
 	"redis-go/lib/redis/core"
+
+	"github.com/cinea4678/resp3"
+	"github.com/emirpasic/gods/maps/linkedhashmap"
+	"github.com/panjf2000/gnet/v2"
 )
 
 // AddReplyArray 向客户端发回一组值
@@ -29,6 +30,12 @@ func AddReplyNumber(client *core.RedisClient, number int64) {
 // AddReplyBigNumber 向客户端发回一个大数
 func AddReplyBigNumber(client *core.RedisClient, number *big.Int) {
 	v := resp3.Value{Type: resp3.TypeNumber, BigInt: number}
+	SendReplyToClient(client, &v)
+}
+
+// AddReplyDouble 向客户端发回一个浮点数
+func AddReplyDouble(client *core.RedisClient, float float64) {
+	v := resp3.Value{Type: resp3.TypeDouble, Double: float}
 	SendReplyToClient(client, &v)
 }
 
@@ -62,12 +69,15 @@ func AddReplyObject(client *core.RedisClient, obj *core.Object) {
 
 // SendReplyToClient 向客户端发送一个已经构造为resp3.Value的值
 func SendReplyToClient(client *core.RedisClient, value *resp3.Value) {
+	if client.IsAOF {
+		return
+	}
 	s := value.ToRESP3String()
-	sendRawReplyToClient(client, []byte(s))
+	SendRawReplyToClient(client, []byte(s))
 }
 
 // 向客户端发送原始的字节
-func sendRawReplyToClient(client *core.RedisClient, bytes []byte) {
+func SendRawReplyToClient(client *core.RedisClient, bytes []byte) {
 	err := client.Conn.AsyncWrite(bytes, func(c gnet.Conn, err error) error { return err })
 	if err != nil {
 		log.Printf("err: %v", err)

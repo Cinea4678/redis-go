@@ -3,3 +3,5 @@
 **/.vscode
 .clang-format
 .gitignore
+*.exe
+main

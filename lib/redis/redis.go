@@ -1,17 +1,20 @@
 package redis
 
 import (
-	"github.com/panjf2000/gnet/v2"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
+	"redis-go/lib/redis/resistence"
 	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
+	"redis-go/lib/redis/zset"
 	"strconv"
+
+	"github.com/panjf2000/gnet/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -28,6 +31,13 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, system.CommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, str.StringsCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, zset.ZSetCommandTable...)
+
+	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, set.SetCommandInfoTable...)
+	io.RedisCommandInfo = append(io.RedisCommandInfo, zset.ZSetCommandInfoTable...)
+
 }
 
 // 初始化server
@@ -43,12 +53,16 @@ func initServer() {
 	//	return serverCron(), action
 	//}
 
+	// 初始化插件系统
+	InitPlugins()
+
 	shared.Server.Commands = initCommandDict()
 
-	shared.Server.Db = &core.RedisDb{
+	shared.Server.Db = make(map[int]*core.RedisDb)
+	shared.Server.Db[0] = &core.RedisDb{
 		Dict:    core.NewDict(),
 		Expires: core.NewDict(),
-		Id:      1,
+		Id:      0,
 	}
 
 	shared.CreateSharedValues()
@@ -56,8 +70,18 @@ func initServer() {
 
 func initCommandDict() *core.Dict {
 	d := core.NewDict()
+	for _, p := range core.Plugins {
+		for _, cmd := range p.Commands {
+			d.DictInsertOrUpdate(cmd, &core.RedisCommand{
+				Name: cmd,
+				RedisClientFunc: func(client *core.RedisClient) error {
+					return io.PluginHandle(p, client)
+				},
+			})
+		}
+	}
 	for _, cmd := range io.RedisCommandTable {
-		d.DictAdd(cmd.Name, cmd)
+		d.DictInsertOrUpdate(cmd.Name, cmd)
 	}
 	return d
 }
@@ -90,9 +114,19 @@ func initCommandDict() *core.Dict {
 // Start 启动服务器
 func Start() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	initServerConfig()
 	initServer()
+
+	if err := resistence.LoadAOF("appendonly.aof"); err != nil {
+		fmt.Println("Failed to load AOF: %v", err)
+	}
+
+	if err := resistence.InitAOF("appendonly.aof"); err != nil {
+		fmt.Println("Failed to initialize AOF: %v", err)
+	}
+
 	elMain()
 }
 
