@@ -127,12 +127,6 @@ func Start() {
 	initServerConfig()
 	initServer()
 
-	if *ReadAOF {
-		err := resistence.LoadAOF("appendonly.aof")
-		if err != nil {
-			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
-		}
-	}
 	//if err := resistence.LoadAOF("appendonly.aof"); err != nil {
 	//	fmt.Println("Failed to load AOF: %v", err)
 	//}
@@ -140,6 +134,13 @@ func Start() {
 	//if err := resistence.InitAOF("appendonly.aof"); err != nil {
 	//	fmt.Println("Failed to initialize AOF: %v", err)
 	//}
+
+	if *ReadAOF {
+		err := resistence.LoadAOF("appendonly.aof")
+		if err != nil {
+			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
+		}
+	}
 	if *WriteAOF {
 		err := resistence.LoadAOF("appendonly.aof")
 		if err != nil {
