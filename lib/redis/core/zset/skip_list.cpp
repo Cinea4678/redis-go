@@ -305,12 +305,6 @@ vector<pair<double, ZSetType>> SkipList::searchRange(double lscore,
                                                      double rscore) {
     vector<pair<double, ZSetType>> result;
 
-    // 检查score范围
-    if (lscore < 0)
-        lscore = length + lscore;
-    if (rscore < 0)
-        rscore = length + rscore;
-
     if (lscore > length || rscore <= 0 || lscore > rscore) {
         return result;
     }

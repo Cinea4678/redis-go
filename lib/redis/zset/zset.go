@@ -1,7 +1,6 @@
 package zset
 
 import (
-	"fmt"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/core/zset"
 	"redis-go/lib/redis/io"
@@ -23,7 +22,7 @@ var (
 func ZAdd(client *core.RedisClient) (err error) {
 	req := client.ReqValue.Elems[1:]
 
-	if len(req) < 2 {
+	if len(req) < 3 {
 		return errNotEnoughArgs
 	}
 
@@ -46,7 +45,9 @@ func ZAdd(client *core.RedisClient) (err error) {
 		zs = zsetObj.Ptr.(*zset.ZSet)
 	}
 
+	num := 0
 	for i := 1; i < len(req); i += 2 {
+		num++
 		score, err := strconv.ParseFloat(req[i].Str, 64)
 		if err != nil {
 			return errInvalidArgs
@@ -54,7 +55,7 @@ func ZAdd(client *core.RedisClient) (err error) {
 
 		value := req[i+1].Str
 
-		fmt.Println(score, value)
+		// fmt.Println(score, value)
 		_, exist := zs.ZSetGetScore(value)
 		if exist {
 			// fmt.Println("ZSetUpdate", value, score, s)
@@ -64,8 +65,8 @@ func ZAdd(client *core.RedisClient) (err error) {
 			zs.ZSetAdd(score, value)
 		}
 
-		io.AddReplyDouble(client, score)
 	}
+	io.AddReplyNumber(client, int64(num))
 
 	return
 }
@@ -112,6 +113,7 @@ func ZCount(client *core.RedisClient) (err error) {
 	if err != nil {
 		return errInvalidArgs
 	}
+	// fmt.Println(minScore, maxScore)
 
 	zsetObj := db.LookupKey(zsetKey)
 	if zsetObj == nil {
@@ -248,7 +250,6 @@ func ZRangeByScore(client *core.RedisClient) (err error) {
 
 	zs := zsetObj.Ptr.(*ZSet)
 	members := zs.ZSetSearchRange(minScore, maxScore)
-	fmt.Println(members)
 	// for _, m := range members {
 	// 	io.AddReplyString(client, m.Value)
 	// 	io.AddReplyDouble(client, m.Score)
