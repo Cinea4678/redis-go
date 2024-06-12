@@ -9,7 +9,6 @@ import "C"
 
 import (
 	"errors"
-	"fmt"
 	"runtime"
 	"unsafe"
 )
@@ -82,10 +81,10 @@ func (zs *ZSet) ZSetGetScore(value string) (float64, bool) {
 // bool返回true表示已存在
 func (zs *ZSet) ZSetAdd(score float64, value string) (float64, bool) {
 	s, exist := zs.ZSetGetScore(value)
-	fmt.Println(s)
+	// fmt.Println(s)
 	// 已存在
 	if exist {
-		fmt.Println("exist")
+		// fmt.Println("exist")
 		return s, true
 	}
 
@@ -165,6 +164,10 @@ func (zs *ZSet) ZSetSearch(score float64) []int {
 }
 
 func (zs *ZSet) ZSetSearchRange(lscore, rscore float64) []ZNode {
+	if lscore > rscore {
+		return []ZNode{}
+	}
+
 	var cLen C.int
 	// 指针传长度，函数返回值数组
 	arrPtr := C.ZSetSearchRange(zs.ptr, C.double(lscore), C.double(rscore), &cLen)
