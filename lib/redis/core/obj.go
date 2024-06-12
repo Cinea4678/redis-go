@@ -10,6 +10,7 @@ const (
 	RedisString = iota
 	RedisList
 	RedisSet
+	RedisZSet
 )
 
 const (
@@ -21,6 +22,8 @@ const (
 	ObjectEncodingFloat32
 	ObjectEncodingFloat64
 	ObjectEncodingSet
+	ObjectEncodingZSet
+	ObjectEncodingList
 )
 
 var (
@@ -95,6 +98,14 @@ func CreateInteger(integer int64) *Object {
 
 func CreateSet(set *Set) *Object {
 	return CreateObject(RedisSet, ObjectEncodingSet, set)
+}
+
+func CreateZSet(zset *ZSet) *Object {
+	return CreateObject(RedisZSet, ObjectEncodingZSet, zset)
+}
+
+func CreateList(list *List) *Object {
+	return CreateObject(RedisList, ObjectEncodingList, list)
 }
 
 // GetString 获取以字符串形式表示的值

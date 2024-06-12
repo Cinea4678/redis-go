@@ -28,7 +28,7 @@ func TestIntset(t *testing.T) {
 		t.Errorf("IntsetFind(1) failed, got %d, want %d", res, Err)
 	}
 
-	// Add multiple to test Length and Random
+	// Add multiple to getAllKeys Length and Random
 	s.IntsetAdd(2)
 	s.IntsetAdd(3)
 

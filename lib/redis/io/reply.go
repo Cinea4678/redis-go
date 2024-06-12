@@ -33,6 +33,12 @@ func AddReplyBigNumber(client *core.RedisClient, number *big.Int) {
 	SendReplyToClient(client, &v)
 }
 
+// AddReplyDouble 向客户端发回一个浮点数
+func AddReplyDouble(client *core.RedisClient, float float64) {
+	v := resp3.Value{Type: resp3.TypeDouble, Double: float}
+	SendReplyToClient(client, &v)
+}
+
 // AddReplyError 向客户端发回一个错误
 func AddReplyError(client *core.RedisClient, err error) {
 	s := "ERR " + err.Error()

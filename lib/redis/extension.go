@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/shared"
+	"strings"
 	"sync"
 
 	jsoniter "github.com/json-iterator/go"
@@ -82,16 +83,20 @@ func loadPlugin(pluginRtDir string, wg *sync.WaitGroup) {
 
 	L := lua.NewState()
 
-	L.DoString(fmt.Sprintf("package.path = package.path .. ';%s/?.lua'", pluginRtDir))
+	dbg := fmt.Sprintf("package.path = '%s\\?.lua'", pluginRtDir)
+	dbg = strings.Replace(dbg, "\\", "\\\\", -1)
+	L.DoString(dbg)
 	pluginPath := filepath.Join(pluginRtDir, "plugin.lua")
 
 	L.PreloadModule("redisApi", shared.RedisApiLuaLoader)
 	if err := L.DoFile(pluginPath); err != nil {
+		//fmt.Println("L.DoFile(pluginPath)")
 		log.Error().Err(err).Msg("init plugin failed")
 		return
 	}
 
 	if err := checkPluginValid(L); err != nil {
+		//fmt.Println("err := checkPluginValid(L)")
 		log.Error().Err(err).Msg("init plugin failed")
 		return
 	}
@@ -102,6 +107,7 @@ func loadPlugin(pluginRtDir string, wg *sync.WaitGroup) {
 		NRet:    1,
 		Protect: true,
 	}); err != nil {
+		//fmt.Println("err != nil")
 		log.Error().Err(err).Msg("init plugin failed")
 		return
 	}
@@ -110,6 +116,7 @@ func loadPlugin(pluginRtDir string, wg *sync.WaitGroup) {
 
 	var provideInfo core.LuaPluginProvideInfo
 	if err := jsoniter.UnmarshalFromString(infoRaw, &provideInfo); err != nil {
+		//fmt.Println("jsoniter.UnmarshalFromString(infoRaw, &provideInfo)")
 		log.Error().Err(err).Str("metadata", infoRaw).Msg("init plugin failed")
 		return
 	}
@@ -121,7 +128,7 @@ func loadPlugin(pluginRtDir string, wg *sync.WaitGroup) {
 		LPool: &sync.Pool{
 			New: func() interface{} {
 				L := lua.NewState()
-				L.DoString(fmt.Sprintf("package.path = package.path .. ';%s/?.lua'", pluginRtDir))
+				L.DoString(dbg)
 				pluginPath := filepath.Join(pluginRtDir, "plugin.lua")
 				L.PreloadModule("redisApi", shared.RedisApiLuaLoader)
 				L.DoFile(pluginPath)

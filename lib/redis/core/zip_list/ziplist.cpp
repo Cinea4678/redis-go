@@ -223,13 +223,16 @@ public:
     static int64_t get_integer(ziplist_node* cur);
     static vector<uint8_t> get_byte_array(ziplist_node* cur);
 
-    //TODO
     ZipListResult delete_(ziplist_node* cur);
     ZipListResult delete_range(ziplist_node* start, int len);
     /**
-     * 通过传入的参数pos来
+     * 通过传入的参数pos来删除，但不更新后续节点的prev_len
     */
     ZipListResult delete_by_pos(size_t pos);
+    /**
+    * 通过传入的参数index来删除
+    */
+    ZipListResult delete_by_index(int64_t index);
 
     /**
      * 连锁更新，从ziplist的第pos个（pos从1开始）之后（不包括pos节点）开始连锁更新
@@ -323,12 +326,7 @@ ZipListResult ziplist::mem2zlnode(size_t pos, ziplist_node*& zp) {
         zp->encoding = (uint8_t)store[p];
         uint8_t encoding = store[p];
         p += 1;
-        if (encoding & ZIP_INT_4b == ZIP_INT_4b) {
-            //整数为0-12，content长度为1，只有低4位是有效的
-            zp->value = encoding & 0x0F;
-            zp->ba_length = 0;
-        }
-        else if (encoding == ZIP_INT_8B) {
+        if (encoding == ZIP_INT_8B) {
             //8位整数
             zp->value = (uint64_t)store[p];
             zp->ba_length = 1;
@@ -355,7 +353,7 @@ ZipListResult ziplist::mem2zlnode(size_t pos, ziplist_node*& zp) {
                 static_cast<uint32_t>(store[p + 3]) << 24;
             zp->ba_length = 4;
         }
-        else {
+        else if(encoding == 0xE0) {
             //64位整数，节点大小+8
             zp->value = static_cast<uint64_t>(store[p]) |
                 static_cast<uint64_t>(store[p + 1]) << 8 |
@@ -366,6 +364,14 @@ ZipListResult ziplist::mem2zlnode(size_t pos, ziplist_node*& zp) {
                 static_cast<uint64_t>(store[p + 6]) << 48 |
                 static_cast<uint64_t>(store[p + 7]) << 56;
             zp->ba_length = 8;
+        }
+        else if ((encoding & ZIP_INT_4b) == ZIP_INT_4b) {
+            //整数为0-12，content长度为1，只有低4位是有效的
+            zp->value = (int64_t)(encoding & 0x0F);
+            zp->ba_length = 0;
+        }
+        else {
+            return Err;
         }
     }
     //encoding长度1字节，字节数组长度小于63字节
@@ -618,10 +624,7 @@ size_t ziplist::get_node_len(size_t pos) {
     if (((uint8_t)store[p] & (uint8_t)0xC0) == (uint8_t)0xC0) {
         uint8_t encoding = store[p];
         res++;  //记录encoding的长度到res中
-        if (encoding & ZIP_INT_4b == ZIP_INT_4b) {
-            //整数为0-12，什么也不做，没有content
-        }
-        else if (encoding == ZIP_INT_8B) {
+        if (encoding == ZIP_INT_8B) {
             //8位整数，节点大小+1
             res += 1;
         }
@@ -637,13 +640,17 @@ size_t ziplist::get_node_len(size_t pos) {
             //32位整数，节点大小+4
             res += 4;
         }
-        // else if(encoding == ZIP_INT_64B) {
-        //     //64位整数，节点大小+8
-        //     res += 8;
-        // }
-        else {
+        else if(encoding == ZIP_INT_64B) {
             //64位整数，节点大小+8
             res += 8;
+        }
+        else if ((encoding & ZIP_INT_4b) == ZIP_INT_4b) {
+            //整数为0-12，什么也不做，没有content
+        }
+        else {
+            //64位整数，节点大小+8
+            //res += 8;
+            return LLONG_MAX;
         }
     }
     //encoding长度1字节，字节数组长度小于63字节
@@ -761,16 +768,16 @@ ZipListResult ziplist::insertEntry(vector<uint8_t>& new_node, size_t pos) {
     store.resize(store.size() + new_node.size());
     // 将从position开始的旧元素向后移动new_node.size()个位置
     move_backward(store.begin() + pos, store.end() - new_node.size(), store.end());
-    /*if (pos == 31) {
-        cout << 1111111 << endl;
-        this->output_store();
-    }*/
+//    if (pos == 31) {
+//        cout << 1111111 << endl;
+//        this->output_store();
+//    }
     // 复制new_node到store的指定位置
     copy(new_node.begin(), new_node.end(), store.begin() + pos);
-    /*if (pos == 31) {
-        cout << 1111111 << endl;
-        this->output_store();
-    }*/
+//    if (pos == 31) {
+//        cout << 1111111 << endl;
+//        this->output_store();
+//    }
     return Ok;
 }
 
@@ -1089,6 +1096,47 @@ ZipListResult ziplist::delete_(ziplist_node* cur) {
 }
 
 /**
+ * 指定节点的索引index(从1开始)，删除该节点
+ * 正确删除返回Ok，
+ * 错误情况返回Err：传入节点结构体cur值出错(content没有或value没有)
+ *          节点的值未找到
+*/
+ZipListResult ziplist::delete_by_index(int64_t index) {
+    size_t pos = this->locate_pos(index); //此处的pos是store的索引，从0开始
+    if (pos == LLONG_MAX || pos == 0) {
+        return Err;
+    }
+    size_t node_len = this->get_node_len(pos);
+    size_t prev_len = this->get_prev_length(pos);
+    bool flag = false;
+    if (pos == this->getZltail()) { //说明删除的是最后一个节点
+        flag = true;
+    }
+    if (this->delete_by_pos(pos) == Ok) {
+        this->setZllen(this->getZllen() - 1);
+        if (flag) {
+            //若前序节点长度也为0，说明删去后ziplist长度为0
+            if (prev_len == 0) {
+                this->setZltail(0x0A);
+            }
+            else {
+                this->setZltail(this->getZltail() - prev_len);
+            }
+        }
+        else {
+            this->setZltail(this->getZltail() - node_len);
+        }
+        this->chain_renew_for_delete(pos, prev_len);
+        this->setZlbytes(this->store.size());
+        return Ok;
+    }
+    else {
+        return Err;
+    }
+    return Ok;
+}
+
+/**
  * 当传入的pos >= store.size() || pos < 0时，返回Err
 */
 ZipListResult ziplist::delete_by_pos(size_t pos) {
@@ -1273,8 +1321,13 @@ ziplist_node* ziplist::find(int64_t integer) {
 
 //用于测试，输出底层存储全部内容
 void ziplist::output_store() {
+    int i = 1;
     for (auto& it : this->store) {
         cout << static_cast<unsigned int>(it) << " ";
+        if (i % 10 == 0) {
+            cout << endl;
+        }
+        i++;
     }
     /*cout << endl;
     for (auto& it : this->store) {
@@ -1412,6 +1465,7 @@ ziplist_node* ziplist::prev(ziplist_node* cur) {
     }
     return zlnode;
 }
+
 
 // int main() {
 //     ziplist* zp = new ziplist();
@@ -1670,7 +1724,7 @@ int ZiplistDeleteRange(ZiplistHandle handle, ZiplistNodeHandle startNodeHandle, 
 }
 
 int ZiplistDeleteByPos(ZiplistHandle handle, size_t pos) {
-    return static_cast<ziplist*>(handle)->delete_by_pos(pos);
+    return static_cast<ziplist*>(handle)->delete_by_index(pos);
 }
 
 int ZiplistBlobLen(ZiplistHandle handle) {

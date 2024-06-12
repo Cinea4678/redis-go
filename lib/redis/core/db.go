@@ -85,3 +85,11 @@ func (r *RedisDb) GetExpire(key string) (time int64, ok bool) {
 		return res.(int64), true
 	}
 }
+
+func (r *RedisDb) GetAllKeys() []string {
+	keys := make([]string, 0, r.Dict.DictLen())
+	r.Dict.ForEach(func(key string, _item interface{}) {
+		keys = append(keys, key)
+	})
+	return keys
+}
