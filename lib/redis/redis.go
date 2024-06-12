@@ -1,7 +1,6 @@
 package redis
 
 import (
-	"fmt"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
@@ -15,6 +14,12 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+)
+
+var (
+	// 用于接收命令行参数
+	ReadAOF  *bool
+	WriteAOF *bool
 )
 
 const (
@@ -117,12 +122,18 @@ func Start() {
 	initServerConfig()
 	initServer()
 
-	if err := resistence.LoadAOF("appendonly.aof"); err != nil {
-		fmt.Println("Failed to load AOF: %v", err)
+	if *ReadAOF {
+		err := resistence.LoadAOF("appendonly.aof")
+		if err != nil {
+			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
+		}
 	}
 
-	if err := resistence.InitAOF("appendonly.aof"); err != nil {
-		fmt.Println("Failed to initialize AOF: %v", err)
+	if *WriteAOF {
+		err := resistence.LoadAOF("appendonly.aof")
+		if err != nil {
+			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
+		}
 	}
 
 	elMain()
