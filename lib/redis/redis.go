@@ -141,7 +141,7 @@ func Start() {
 		if err != nil {
 			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
 		} else {
-			log.Info().Msg("Success to load AOF from " + shared.AOFFilePath)
+			log.Info().Str("AOF file", shared.AOFFilePath).Msg("Success to load AOF")
 		}
 	}
 	if *WriteAOF {
@@ -149,7 +149,7 @@ func Start() {
 		if err != nil {
 			log.Info().Str("error: ", err.Error()).Msg("Failed to init AOF")
 		} else {
-			log.Info().Msg("Success to init AOF from " + shared.AOFFilePath)
+			log.Info().Str("AOF file", shared.AOFFilePath).Msg("Success to init AOF")
 		}
 	}
 
