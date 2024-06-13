@@ -20,8 +20,9 @@ import (
 
 var (
 	// 用于接收命令行参数
-	ReadAOF  *bool
-	WriteAOF *bool
+	ReadAOF     *bool
+	WriteAOF    *bool
+	AOFFileName *string
 )
 
 const (
@@ -136,15 +137,19 @@ func Start() {
 	//}
 
 	if *ReadAOF {
-		err := resistence.LoadAOF("appendonly.aof")
+		err := resistence.LoadAOF(shared.AOFFilePath)
 		if err != nil {
 			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
+		} else {
+			log.Info().Msg("Success to load AOF from " + shared.AOFFilePath)
 		}
 	}
 	if *WriteAOF {
-		err := resistence.LoadAOF("appendonly.aof")
+		err := resistence.LoadAOF(shared.AOFFilePath)
 		if err != nil {
-			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
+			log.Info().Str("error: ", err.Error()).Msg("Failed to init AOF")
+		} else {
+			log.Info().Msg("Success to init AOF from " + shared.AOFFilePath)
 		}
 	}
 

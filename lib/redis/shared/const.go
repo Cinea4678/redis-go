@@ -14,4 +14,5 @@ const (
 
 	AOFInterval = 1 * time.Second // aof间隔时间
 	AOFBuffer   = 1000            //aof缓冲区刷新大小
+	AOFFilePath = "appendonly.aof"
 )
