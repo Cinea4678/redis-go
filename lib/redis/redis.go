@@ -1,19 +1,28 @@
 package redis
 
 import (
-	"github.com/panjf2000/gnet/v2"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"redis-go/lib/redis/core"
 	"redis-go/lib/redis/io"
 	"redis-go/lib/redis/list"
+	"redis-go/lib/redis/resistence"
 	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
 	"redis-go/lib/redis/system"
 	"redis-go/lib/redis/zset"
 	"strconv"
+
+	"github.com/panjf2000/gnet/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
+
+var (
+	// 用于接收命令行参数
+	ReadAOF     *bool
+	WriteAOF    *bool
+	AOFFileName *string
 )
 
 const (
@@ -126,6 +135,23 @@ func Start() {
 	//if err := resistence.InitAOF("appendonly.aof"); err != nil {
 	//	fmt.Println("Failed to initialize AOF: %v", err)
 	//}
+
+	if *ReadAOF {
+		err := resistence.LoadAOF(shared.AOFFilePath)
+		if err != nil {
+			log.Info().Str("error: ", err.Error()).Msg("Failed to load AOF")
+		} else {
+			log.Info().Str("AOF file", shared.AOFFilePath).Msg("Success to load AOF")
+		}
+	}
+	if *WriteAOF {
+		err := resistence.LoadAOF(shared.AOFFilePath)
+		if err != nil {
+			log.Info().Str("error: ", err.Error()).Msg("Failed to init AOF")
+		} else {
+			log.Info().Str("AOF file", shared.AOFFilePath).Msg("Success to init AOF")
+		}
+	}
 
 	elMain()
 }
