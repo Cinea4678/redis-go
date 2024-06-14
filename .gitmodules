@@ -1,0 +1,12 @@
+[submodule "plugin/json/dep/json.lua"]
+	path = plugin/json/dep/json.lua
+	url = https://github.com/rxi/json.lua.git
+[submodule "plugin/json/dep/jmespath.lua"]
+	path = plugin/json/dep/jmespath.lua
+	url = https://github.com/jmespath/jmespath.lua.git
+[submodule "plugin/json/dep/lua-resp3"]
+	path = plugin/json/dep/lua-resp3
+	url = https://github.com/cinea4678/lua-resp3.git
+[submodule "plugin/json/dep/luajson"]
+	path = plugin/json/dep/luajson
+	url = https://github.com/harningt/luajson.git
