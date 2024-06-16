@@ -148,7 +148,7 @@ ZSetType zset::searchRank(int rank) {
 }
 
 vector<pair<double, ZSetType>> zset::searchRankRange(int lrank, int rrank) {
-    return searchRankRange(lrank, rrank);
+    return list.searchRankRange(lrank, rrank);
 }
 
 void* NewZSet() {

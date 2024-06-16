@@ -529,6 +529,7 @@ vector<pair<double, ZSetType>> SkipList::searchRankRange(int lrank, int rrank) {
             sibling = sibling->nextSibling;
             curRank++;
         }
+        cur = cur->forward[0];
     }
     return result;
 }
@@ -590,14 +591,14 @@ void SkipList::printLevel(ZSetSizeType lvl) const {
 //     // elapsed = end - start;
 //     // cout << "SkipList insert time: " << elapsed.count() << " ms" << endl;
 
-//     // Test: search
-//     start = chrono::system_clock::now();
-//     for (int i = 0; i < testCount; i++) {
-//         list.search(rand() % testCount * 0.1);
-//     }
-//     end = chrono::system_clock::now();
-//     elapsed = end - start;
-//     cout << "SkipList search time: " << elapsed.count() << " ms" << endl;
+//     // // Test: search
+//     // start = chrono::system_clock::now();
+//     // for (int i = 0; i < testCount; i++) {
+//     //     list.search(rand() % testCount * 0.1);
+//     // }
+//     // end = chrono::system_clock::now();
+//     // elapsed = end - start;
+//     // cout << "SkipList search time: " << elapsed.count() << " ms" << endl;
 
 //     // start = chrono::system_clock::now();
 //     // for (auto i : list.searchRange(50, 100)) {
@@ -612,24 +613,24 @@ void SkipList::printLevel(ZSetSizeType lvl) const {
 
 //     // TODO: 补充查找和删除的测试
 
-//     auto rm = list.remove(46.2);
-//     if (!rm.empty()) {
-//         cout << "Remove sucessfully, value = ";
-//         for (auto i : rm) {
-//             cout << i << ", ";
-//         }
-//         cout << endl;
-//     }
+//     // auto rm = list.remove(46.2);
+//     // if (!rm.empty()) {
+//     //     cout << "Remove sucessfully, value = ";
+//     //     for (auto i : rm) {
+//     //         cout << i << ", ";
+//     //     }
+//     //     cout << endl;
+//     // }
 
-//     if (list.remove(12.8, 67)) {
-//         cout << "Remove sucessfully" << endl;
-//     }
-//     list.print();
+//     // if (list.remove(12.8, 67)) {
+//     //     cout << "Remove sucessfully" << endl;
+//     // }
+//     // list.print();
 
-//     auto res = list.searchRank(114);
-//     cout << "searchRank found:" << res.first << " " << res.second << endl;
+//     // auto res = list.searchRank(114);
+//     // cout << "searchRank found:" << res.first << " " << res.second << endl;
 
-//     auto res2 = list.searchRankRange(100, 101);
+//     auto res2 = list.searchRankRange(1, 101);
 //     cout << "searchRankRang found ";
 //     cout << res2.size() << " :";
 //     for (auto r : res2) {
