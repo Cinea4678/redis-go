@@ -303,8 +303,6 @@ func ZRem(client *core.RedisClient) (err error) {
 		status := zs.ZSetRemoveValue(member.Str)
 		if status == zset.ZSetOk {
 			removedCount++
-		} else {
-			io.AddReplyString(client, member.Str+"not found")
 		}
 	}
 
