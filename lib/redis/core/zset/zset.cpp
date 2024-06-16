@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <exception>
 #include <limits>
 #include <unordered_map>
 #include <vector>
@@ -169,7 +170,6 @@ double ZSetGetScore(void* zs, ZSetType value) {
 }
 
 double ZSetAdd(void* zs, double score, ZSetType value) {
-    cout << "Adding " << score << " " << value << endl;
     return static_cast<zset*>(zs)->add(score, value);
 }
 
@@ -188,7 +188,12 @@ void* ZSetRemoveScore(void* zs, double score, int* length) {
 }
 
 double ZSetRemoveValue(void* zs, ZSetType value) {
-    return (static_cast<zset*>(zs)->remove(value));
+    try {
+        return (static_cast<zset*>(zs)->remove(value));
+    } catch (exception err) {
+        cout << err.what() << endl;
+        return 0;
+    }
 }
 
 void* ZSetSearch(void* zs, double score, int* length) {
