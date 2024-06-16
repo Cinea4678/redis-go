@@ -118,7 +118,9 @@ func (zs *ZSet) ZSetRemoveValue(value string) int {
 		return ZSetErr
 	}
 
-	pos := int(C.ZSetRemoveValue(zs.ptr, C.uint(zs.v2i[value])))
+	pos := zs.v2i[value]
+	C.ZSetRemoveValue(zs.ptr, C.uint(zs.v2i[value]))
+
 	if pos >= 0 {
 		zs.objs[pos].Score = ZSetNotFound
 		zs.objs[pos].Value = ""

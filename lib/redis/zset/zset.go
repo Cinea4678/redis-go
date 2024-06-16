@@ -135,7 +135,10 @@ func ZIncrBy(client *core.RedisClient) (err error) {
 	}
 
 	key := req[0].Str
-	increment := req[1].Double
+	increment, err := strconv.ParseFloat(req[1].Str, 64)
+	if err != nil {
+		return errInvalidArgs
+	}
 	member := req[2].Str
 	db := client.Db
 
