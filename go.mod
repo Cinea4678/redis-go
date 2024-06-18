@@ -23,6 +23,9 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/otiai10/copy v1.14.0 // indirect
 	github.com/thoas/go-funk v0.9.3 // indirect
+	github.com/tidwall/gjson v1.17.1 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect

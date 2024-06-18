@@ -14,6 +14,7 @@ var CommandTable = []*core.RedisCommand{
 	{Name: "echo", RedisClientFunc: Echo},
 	{Name: "hello", RedisClientFunc: Hello},
 	{Name: "info", RedisClientFunc: Info},
+	{Name: "prof", RedisClientFunc: Prof},
 }
 
 var CommandInfoTable = []*core.RedisCommandInfo{
@@ -22,4 +23,5 @@ var CommandInfoTable = []*core.RedisCommandInfo{
 	core.NewRedisCommandInfo("echo", 2, []string{"loading", "fast"}, 0, 0, 0),
 	core.NewRedisCommandInfo("hello", 1, []string{"fast"}, 0, 0, 0),
 	core.NewRedisCommandInfo("info", 1, []string{"fast"}, 0, 0, 0),
+	core.NewRedisCommandInfo("prof", 1, []string{"fast"}, 0, 0, 0),
 }

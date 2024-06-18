@@ -6,6 +6,7 @@ import (
 	"redis-go/lib/redis/shared"
 	"runtime"
 	"strconv"
+	"time"
 
 	"github.com/cinea4678/resp3"
 	"github.com/panjf2000/gnet/v2"
@@ -101,6 +102,17 @@ func processInputBuffer(client *core.RedisClient) error {
 		// 未知消息类型
 		return errUnknownMessage
 	} else {
-		return ProcessCommand(client)
+		// 计时 执行
+		startTime := time.Now()
+		err := ProcessCommand(client)
+		duration := time.Since(startTime).Seconds()
+
+		// 克隆Profile
+		client.LastProfile = &core.Profile{
+			MemStat:  &runtime.MemStats{},
+			TimeCost: duration,
+		}
+		runtime.ReadMemStats(client.LastProfile.MemStat)
+		return err
 	}
 }

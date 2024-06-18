@@ -8,6 +8,7 @@ import (
 
 	"github.com/cinea4678/resp3"
 	"github.com/emirpasic/gods/maps/linkedhashmap"
+	jsoniter "github.com/json-iterator/go"
 )
 
 // Ping Ping命令
@@ -65,5 +66,20 @@ func Hello(client *core.RedisClient) error {
 	kv.Put(resp3.NewSimpleStringValue("modules"), resp3.NewArrayValue([]*resp3.Value{}))
 
 	io.AddReplyMap(client, kv)
+	return nil
+}
+
+// Prof PROF命令
+// 我自己编的
+func Prof(client *core.RedisClient) error {
+	if client.LastProfile != nil {
+		j, err := jsoniter.MarshalToString(client.LastProfile)
+		if err != nil {
+			return err
+		}
+		io.AddReplyString(client, j)
+	} else {
+		io.AddReplyNull(client)
+	}
 	return nil
 }

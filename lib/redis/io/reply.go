@@ -21,6 +21,12 @@ func AddReplyMap(client *core.RedisClient, map_ *linkedhashmap.Map) {
 	SendReplyToClient(client, &v)
 }
 
+// AddReplyNumber 向客户端发回一个布尔
+func AddReplyBool(client *core.RedisClient, value bool) {
+	v := resp3.Value{Type: resp3.TypeBoolean, Boolean: value}
+	SendReplyToClient(client, &v)
+}
+
 // AddReplyNumber 向客户端发回一个数字
 func AddReplyNumber(client *core.RedisClient, number int64) {
 	v := resp3.Value{Type: resp3.TypeNumber, Integer: number}
@@ -36,6 +42,12 @@ func AddReplyBigNumber(client *core.RedisClient, number *big.Int) {
 // AddReplyDouble 向客户端发回一个浮点数
 func AddReplyDouble(client *core.RedisClient, float float64) {
 	v := resp3.Value{Type: resp3.TypeDouble, Double: float}
+	SendReplyToClient(client, &v)
+}
+
+// AddReplyNumber 向客户端发回一个浮点数
+func AddReplyFloat(client *core.RedisClient, number float64) {
+	v := resp3.Value{Type: resp3.TypeDouble, Double: number}
 	SendReplyToClient(client, &v)
 }
 
@@ -55,6 +67,12 @@ func AddReplyString(client *core.RedisClient, str string) {
 		resType = resp3.TypeSimpleString
 	}
 	v := resp3.Value{Type: resType, Str: str}
+	SendReplyToClient(client, &v)
+}
+
+// AddReplyString 向客户端发回一个字符串
+func AddReplyNull(client *core.RedisClient) {
+	v := resp3.Value{Type: resp3.TypeNull}
 	SendReplyToClient(client, &v)
 }
 

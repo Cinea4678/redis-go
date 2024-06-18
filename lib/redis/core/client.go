@@ -19,4 +19,5 @@ type RedisClient struct {
 
 	Flags int  //处理标记
 	IsAOF bool //是否为AOF虚拟客户端
+    LastProfile *Profile // 最后一次命令执行的性能信息
 }

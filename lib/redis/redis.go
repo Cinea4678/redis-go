@@ -6,6 +6,7 @@ import (
 	"redis-go/lib/redis/io"
 	"redis-go/lib/redis/list"
 	"redis-go/lib/redis/resistence"
+	"redis-go/lib/redis/json"
 	"redis-go/lib/redis/set"
 	"redis-go/lib/redis/shared"
 	"redis-go/lib/redis/str"
@@ -41,12 +42,14 @@ func initServerConfig() {
 	io.RedisCommandTable = append(io.RedisCommandTable, set.SetCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, zset.ZSetCommandTable...)
 	io.RedisCommandTable = append(io.RedisCommandTable, list.ListCommandTable...)
+	io.RedisCommandTable = append(io.RedisCommandTable, json.JsonCommandTable...)
 
 	io.RedisCommandInfo = append(io.RedisCommandInfo, system.CommandInfoTable...)
 	io.RedisCommandInfo = append(io.RedisCommandInfo, str.StringsCommandInfoTable...)
 	io.RedisCommandInfo = append(io.RedisCommandInfo, set.SetCommandInfoTable...)
 	io.RedisCommandInfo = append(io.RedisCommandInfo, zset.ZSetCommandInfoTable...)
 
+	io.RedisCommandInfo = append(io.RedisCommandInfo, json.JsonCommandInfoTable...)
 }
 
 // 初始化server
